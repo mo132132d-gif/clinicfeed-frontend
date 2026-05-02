@@ -1,0 +1,64 @@
+@import './fonts.css';
+@import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+  background: #0F172A;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Cairo', system-ui, sans-serif;
+  background: #0F172A;
+  color: #f8fafc;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  white-space: nowrap;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
