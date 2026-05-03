@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Navigate } from "react-router";
-import { Activity, Lock, Mail, ShieldCheck } from "lucide-react";
+import { Mail, ShieldCheck } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 
 export function LoginPage() {
@@ -30,13 +30,13 @@ export function LoginPage() {
     <main dir="rtl" className="min-h-screen bg-[#0F172A] text-white">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
         <section className="hidden border-l border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950/80 p-10 lg:flex lg:flex-col lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-blue-700 p-3 shadow-lg shadow-blue-950/50">
-              <Activity className="h-7 w-7" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold">ClinicFeed</h1>
-              <p className="text-sm text-slate-400">منصة إدارة الموردين الداخلية</p>
+          <div className="flex items-center">
+            <div className="flex h-24 w-56 items-center justify-center overflow-hidden">
+              <img
+                src="/clinicfeed-logo.png.svg"
+                alt="ClinicFeed"
+                className="h-24 w-auto scale-[2.6] object-contain"
+              />
             </div>
           </div>
 
@@ -44,9 +44,11 @@ export function LoginPage() {
             <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
               عمليات صحية ومشتريات أكثر وضوحًا
             </span>
+
             <h2 className="text-5xl font-black leading-tight">
               لوحة تحكم مؤسسية لمتابعة الموردين، العقود، المستندات، ومؤشرات الأداء.
             </h2>
+
             <p className="text-lg leading-8 text-slate-300">
               تسجيل دخول آمن، صلاحيات حسب الدور، وتنظيم كامل لملفات الموردين استعدادًا للعرض التشغيلي.
             </p>
@@ -67,12 +69,19 @@ export function LoginPage() {
             onSubmit={handleSubmit}
             className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/95 p-8 shadow-2xl shadow-slate-950/60"
           >
-            <div className="mb-8">
-              <div className="mb-4 inline-flex rounded-2xl bg-blue-700 p-3">
-                <Lock className="h-6 w-6" />
+            <div className="mb-8 text-center">
+              <div className="mx-auto mb-6 flex h-24 w-56 items-center justify-center overflow-hidden">
+                <img
+                  src="/clinicfeed-logo.png.svg"
+                  alt="ClinicFeed"
+                  className="h-24 w-auto scale-[2.6] object-contain"
+                />
               </div>
+
               <h2 className="text-3xl font-black">تسجيل الدخول</h2>
-              <p className="mt-2 text-sm text-slate-400">ادخل بيانات حسابك للوصول إلى لوحة الموردين.</p>
+              <p className="mt-2 text-sm text-slate-400">
+                ادخل بيانات حسابك للوصول إلى لوحة الموردين.
+              </p>
             </div>
 
             {(error || message) && (
