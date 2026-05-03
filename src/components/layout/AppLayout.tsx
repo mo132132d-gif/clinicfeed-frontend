@@ -75,8 +75,13 @@ export function AppLayout() {
               <Activity className="h-6 w-6" />
             </span>
             <span>
-              <span className="block text-xl font-black">ClinicFeed</span>
-              <span className="block text-xs text-slate-500">Supplier Management</span>
+<div className="flex items-center justify-center py-4">
+  <img
+    src="/clinicfeed-logo.png.svg"
+    alt="ClinicFeed"
+    className="h-16 w-auto object-contain"
+  />
+</div>              <span className="block text-xs text-slate-500">Supplier Management</span>
             </span>
           </Link>
           <button className="rounded-lg p-2 text-slate-400 hover:bg-slate-900 lg:hidden" onClick={() => setSidebarOpen(false)}>
