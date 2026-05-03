@@ -14,7 +14,6 @@ import {
   User,
   Menu,
   X,
-  Stethoscope
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -104,12 +103,13 @@ export function Layout() {
           sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex h-16 items-center justify-between px-6 border-b border-brand-800">
-          <Link to="/" className="flex items-center gap-3 text-xl font-bold">
-            <div className="bg-primary-500 p-1.5 rounded-lg text-white">
-              <Stethoscope size={24} />
-            </div>
-            ClinicFeed
+        <div className="flex h-24 items-center justify-between px-6 border-b border-brand-800">
+          <Link to="/" className="flex flex-1 items-center justify-center">
+            <img
+            src="/clinicfeed-logo.png.svg"
+              alt="ClinicFeed"
+            className="h-14 w-auto max-w-[180px] object-contain"
+            /<
           </Link>
 
           <button
