@@ -1,5 +1,18 @@
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
-import { Activity, Bell, LayoutDashboard, LogOut, Menu, Moon, Search, Settings, Sun, UserCircle, Users, X } from "lucide-react";
+import {
+  Activity,
+  Bell,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+  UserCircle,
+  Users,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../features/auth/AuthProvider";
@@ -15,13 +28,52 @@ const baseNavigation = [
 ];
 
 function pageInfo(pathname: string) {
-  if (pathname === "/") return { title: "لوحة التحكم", subtitle: "نظرة تشغيلية على الموردين والمؤشرات والتنبيهات" };
-  if (pathname.startsWith("/suppliers/")) return { title: "ملف المورد", subtitle: "البيانات، العقود، المستندات، وجهات الاتصال" };
-  if (pathname === "/suppliers") return { title: "الموردين", subtitle: "إدارة الموردين والبحث والتصفية والمتابعة" };
-  if (pathname === "/users") return { title: "إدارة المستخدمين", subtitle: "حسابات الموظفين والأدوار والصلاحيات" };
-  if (pathname === "/activity") return { title: "سجل النشاط", subtitle: "آخر العمليات المسجلة في النظام" };
-  if (pathname === "/account") return { title: "حسابي", subtitle: "بيانات الحساب وتغيير كلمة المرور" };
-  return { title: "ClinicFeed", subtitle: "منصة إدارة الموردين الداخلية" };
+  if (pathname === "/") {
+    return {
+      title: "لوحة التحكم",
+      subtitle: "نظرة تشغيلية على الموردين والمؤشرات والتنبيهات",
+    };
+  }
+
+  if (pathname.startsWith("/suppliers/")) {
+    return {
+      title: "ملف المورد",
+      subtitle: "البيانات، العقود، المستندات، وجهات الاتصال",
+    };
+  }
+
+  if (pathname === "/suppliers") {
+    return {
+      title: "الموردين",
+      subtitle: "إدارة الموردين والبحث والتصفية والمتابعة",
+    };
+  }
+
+  if (pathname === "/users") {
+    return {
+      title: "إدارة المستخدمين",
+      subtitle: "حسابات الموظفين والأدوار والصلاحيات",
+    };
+  }
+
+  if (pathname === "/activity") {
+    return {
+      title: "سجل النشاط",
+      subtitle: "آخر العمليات المسجلة في النظام",
+    };
+  }
+
+  if (pathname === "/account") {
+    return {
+      title: "حسابي",
+      subtitle: "بيانات الحساب وتغيير كلمة المرور",
+    };
+  }
+
+  return {
+    title: "ClinicFeed",
+    subtitle: "منصة إدارة الموردين الداخلية",
+  };
 }
 
 export function AppLayout() {
@@ -40,11 +92,26 @@ export function AppLayout() {
 
   const navigation = useMemo(() => {
     const items = [...baseNavigation];
-    if (canManageUsers(user?.role)) items.splice(2, 0, { name: "المستخدمين", href: "/users", icon: Settings });
+
+    if (canManageUsers(user?.role)) {
+      items.splice(2, 0, {
+        name: "المستخدمين",
+        href: "/users",
+        icon: Settings,
+      });
+    }
+
     return items;
   }, [user?.role]);
 
-  if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-[#0F172A] text-slate-300">جاري تحميل النظام...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0F172A] text-slate-300">
+        جاري تحميل النظام...
+      </div>
+    );
+  }
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const info = pageInfo(location.pathname);
@@ -61,7 +128,14 @@ export function AppLayout() {
           {message}
         </div>
       )}
-      {sidebarOpen && <button className="fixed inset-0 z-40 bg-slate-950/60 lg:hidden" onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة" />}
+
+      {sidebarOpen && (
+        <button
+          className="fixed inset-0 z-40 bg-slate-950/60 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="إغلاق القائمة"
+        />
+      )}
 
       <aside
         className={cn(
@@ -69,29 +143,32 @@ export function AppLayout() {
           sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0",
         )}
       >
-        <div className="flex h-20 items-center justify-between border-b border-slate-800 px-5">
-          <Link to="/" className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-800 text-white shadow-lg shadow-blue-950/50">
-              <Activity className="h-6 w-6" />
-            </span>
-            <span>
-<div className="flex items-center justify-center py-4">
-  <img
-    src="/clinicfeed-logo.png.svg"
-    alt="ClinicFeed"
-    className="h-16 w-auto object-contain"
-  />
-</div>              <span className="block text-xs text-slate-500">Supplier Management</span>
-            </span>
+        <div className="relative flex h-32 items-center justify-center border-b border-slate-800 px-5">
+          <Link
+            to="/"
+            className="flex h-28 w-full items-center justify-center overflow-hidden rounded-2xl"
+          >
+            <img
+              src="/clinicfeed-logo.png.svg"
+              alt="ClinicFeed"
+              className="h-28 w-auto scale-[2.8] object-contain"
+            />
           </Link>
-          <button className="rounded-lg p-2 text-slate-400 hover:bg-slate-900 lg:hidden" onClick={() => setSidebarOpen(false)}>
+
+          <button
+            className="absolute left-4 rounded-lg p-2 text-slate-400 hover:bg-slate-900 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto p-4">
           {navigation.map((item) => {
-            const active = location.pathname === item.href || (item.href !== "/" && location.pathname.startsWith(item.href));
+            const active =
+              location.pathname === item.href ||
+              (item.href !== "/" && location.pathname.startsWith(item.href));
+
             return (
               <Link
                 key={item.href}
@@ -99,7 +176,9 @@ export function AppLayout() {
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition",
-                  active ? "bg-blue-900/70 text-white ring-1 ring-blue-700/60" : "text-slate-400 hover:bg-slate-900 hover:text-white",
+                  active
+                    ? "bg-blue-900/70 text-white ring-1 ring-blue-700/60"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-white",
                 )}
               >
                 <item.icon className="h-5 w-5" />
@@ -112,14 +191,19 @@ export function AppLayout() {
         <div className="border-t border-slate-800 p-4">
           <div className="rounded-2xl border border-slate-800 bg-[#111827] p-4">
             <p className="font-black text-white">{user?.name || "مستخدم النظام"}</p>
-            <p className="mt-1 text-xs text-slate-500">{roleLabels[user?.role || "viewer"]}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {roleLabels[user?.role || "viewer"]}
+            </p>
           </div>
         </div>
       </aside>
 
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 flex min-h-20 items-center gap-4 border-b border-slate-800 bg-[#0F172A]/90 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
-          <button className="rounded-xl border border-slate-800 bg-[#111827] p-2 text-slate-300 lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <button
+            className="rounded-xl border border-slate-800 bg-[#111827] p-2 text-slate-300 lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
             <Menu className="h-5 w-5" />
           </button>
 
@@ -143,15 +227,29 @@ export function AppLayout() {
             />
           </div>
 
-          <Button variant="secondary" onClick={() => queryClient.invalidateQueries()} title="تحديث البيانات">
+          <Button
+            variant="secondary"
+            onClick={() => queryClient.invalidateQueries()}
+            title="تحديث البيانات"
+          >
             تحديث
           </Button>
-          <button className="rounded-xl border border-slate-800 bg-[#111827] p-2 text-slate-300 hover:bg-slate-800" title="الإشعارات" onClick={() => setMessage("لا توجد إشعارات جديدة حاليًا")}>
+
+          <button
+            className="rounded-xl border border-slate-800 bg-[#111827] p-2 text-slate-300 hover:bg-slate-800"
+            title="الإشعارات"
+            onClick={() => setMessage("لا توجد إشعارات جديدة حاليًا")}
+          >
             <Bell className="h-5 w-5" />
           </button>
-          <button className="rounded-xl border border-slate-800 bg-[#111827] p-2 text-slate-300 hover:bg-slate-800" onClick={() => setDark((value) => !value)}>
+
+          <button
+            className="rounded-xl border border-slate-800 bg-[#111827] p-2 text-slate-300 hover:bg-slate-800"
+            onClick={() => setDark((value) => !value)}
+          >
             {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
+
           <Button variant="ghost" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             خروج
