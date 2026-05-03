@@ -177,13 +177,45 @@ export async function importSuppliers(file: File) {
   const form = new FormData();
   form.append("file", file);
 
-  return apiRequest<{
-    message: string;
+  const payload = await apiRequest<{ data: {
+    totalRows: number;
     imported: number;
+    updated: number;
+    contactsCreated: number;
+    contactsUpdated: number;
     skipped: number;
     incomplete: number;
-  }>("/suppliers/import", {
+    duplicates: number;
+    failed: number;
+    failedRows: Array<{ rowNumber: number; reason: string }>;
+  } }>("/suppliers/import", {
     method: "POST",
     body: form,
   });
+
+  return unwrapData(payload);
+}
+
+export async function previewSupplierImport(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+
+  const payload = await apiRequest<{ data: {
+    dryRun: true;
+    totalRows: number;
+    imported: number;
+    updated: number;
+    contactsCreated: number;
+    contactsUpdated: number;
+    skipped: number;
+    incomplete: number;
+    duplicates: number;
+    failed: number;
+    failedRows: Array<{ rowNumber: number; reason: string }>;
+  } }>("/suppliers/import/preview", {
+    method: "POST",
+    body: form,
+  });
+
+  return unwrapData(payload);
 }

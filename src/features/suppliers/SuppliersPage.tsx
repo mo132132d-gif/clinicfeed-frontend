@@ -3,9 +3,9 @@ import { Link, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Edit2, Eye, Plus, RefreshCw, Search, Upload } from "lucide-react";
 import { categoryOptions, supplierStatuses } from "../../lib/constants";
-import { parseCategories, formatDate } from "../../lib/format";
-import { canArchiveSuppliers, canManageSuppliers, canCreateSupplier } from "../../lib/permissions";
-import { archiveSupplier, importSuppliers, listSuppliers } from "../../services/supplierService";
+import { formatDate, parseCategories } from "../../lib/format";
+import { canArchiveSuppliers, canCreateSupplier, canManageSuppliers } from "../../lib/permissions";
+import { archiveSupplier, importSuppliers, listSuppliers, previewSupplierImport } from "../../services/supplierService";
 import { useAuth } from "../auth/AuthProvider";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import type { Supplier } from "../../types";
@@ -37,49 +37,79 @@ export function SuppliersPage() {
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت الأرشفة"),
   });
 
+  const previewMutation = useMutation({
+    mutationFn: previewSupplierImport,
+    onSuccess: (result) => {
+      setMessage(
+        `معاينة الملف: إجمالي الصفوف ${result.totalRows}، سيتم إضافة ${result.imported}، تحديث ${result.updated}، ناقصة ${result.incomplete}، فاشلة ${result.failed}`
+      );
+    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت معاينة ملف الموردين"),
+  });
+
   const importMutation = useMutation({
     mutationFn: importSuppliers,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       setMessage(
-        `تم رفع الموردين بنجاح: ${result.imported} مورد، معلومات ناقصة: ${result.incomplete}، متجاوز: ${result.skipped}`
+        `نتيجة الاستيراد: تمت إضافة ${result.imported}، تحديث ${result.updated}، ناقصة ${result.incomplete}، فاشلة ${result.failed}`
       );
     },
-    onError: (err) => {
-      setMessage(err instanceof Error ? err.message : "فشل رفع ملف الموردين");
-    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل رفع ملف الموردين"),
   });
+
+  function validateImportFile(file: File) {
+    const lowerName = file.name.toLowerCase();
+
+    if (!lowerName.endsWith(".xlsx") && !lowerName.endsWith(".csv")) {
+      setMessage("ارفع ملف Excel بصيغة xlsx أو ملف CSV UTF-8");
+      return false;
+    }
+
+    return true;
+  }
+
+  function handlePreviewFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+    if (!validateImportFile(file)) return;
+
+    previewMutation.mutate(file);
+  }
 
   function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
 
     if (!file) return;
+    if (!validateImportFile(file)) return;
 
-    const allowed =
-      file.name.endsWith(".xlsx") ||
-      file.name.endsWith(".xls") ||
-      file.name.endsWith(".csv");
+    const confirmed = window.confirm(
+      "سيتم رفع الملف وتعديل قاعدة البيانات. هل أنت متأكد؟"
+    );
 
-    if (!allowed) {
-      setMessage("ارفع ملف Excel فقط بصيغة xlsx أو xls أو csv");
-      return;
-    }
+    if (!confirmed) return;
 
     importMutation.mutate(file);
   }
 
   const filtered = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
+
     return suppliers.filter((supplier) => {
       const categories = parseCategories(supplier.category);
       const haystack = [supplier.name_ar, supplier.name_en, supplier.city, supplier.cr_number, supplier.vat_number, ...categories]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      return (!term || haystack.includes(term))
-        && (status === "all" || supplier.status === status)
-        && (category === "all" || categories.includes(category));
+
+      return (
+        (!term || haystack.includes(term)) &&
+        (status === "all" || supplier.status === status) &&
+        (category === "all" || categories.includes(category))
+      );
     });
   }, [suppliers, debouncedSearch, status, category]);
 
@@ -91,6 +121,7 @@ export function SuppliersPage() {
       setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
       return;
     }
+
     if (window.confirm(`هل تريد أرشفة المورد: ${supplier.name_ar}؟`)) {
       archiveMutation.mutate(supplier.id);
     }
@@ -105,15 +136,41 @@ export function SuppliersPage() {
           <div className="grid gap-3 md:grid-cols-3">
             <div className="relative">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <Input className="pr-9" placeholder="بحث باسم المورد أو السجل أو التصنيف" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
+              <Input
+                className="pr-9"
+                placeholder="بحث باسم المورد أو السجل أو التصنيف"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+              />
             </div>
-            <Select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
+
+            <Select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
+            >
               <option value="all">كل الحالات</option>
-              {supplierStatuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              {supplierStatuses.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
             </Select>
-            <Select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }}>
+
+            <Select
+              value={category}
+              onChange={(event) => {
+                setCategory(event.target.value);
+                setPage(1);
+              }}
+            >
               <option value="all">كل التصنيفات</option>
-              {categoryOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+              {categoryOptions.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
             </Select>
           </div>
 
@@ -124,14 +181,28 @@ export function SuppliersPage() {
             </Button>
 
             {canCreateSupplier(user?.role) && (
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-700">
+              <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 transition hover:bg-slate-700">
+                <Search className="h-4 w-4" />
+                {previewMutation.isPending ? "جاري المعاينة..." : "معاينة ملف Excel"}
+                <input
+                  type="file"
+                  accept=".xlsx,.csv"
+                  onChange={handlePreviewFile}
+                  disabled={previewMutation.isPending || importMutation.isPending}
+                  className="hidden"
+                />
+              </label>
+            )}
+
+            {canCreateSupplier(user?.role) && (
+              <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 transition hover:bg-slate-700">
                 <Upload className="h-4 w-4" />
                 {importMutation.isPending ? "جاري رفع الملف..." : "رفع ملف Excel"}
                 <input
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                  accept=".xlsx,.csv"
                   onChange={handleImportFile}
-                  disabled={importMutation.isPending}
+                  disabled={previewMutation.isPending || importMutation.isPending}
                   className="hidden"
                 />
               </label>
@@ -168,6 +239,7 @@ export function SuppliersPage() {
                   <th className="px-5 py-4 font-black">الإجراءات</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-slate-800">
                 {rows.map((supplier) => (
                   <tr key={supplier.id} className="hover:bg-slate-900/70">
@@ -175,22 +247,62 @@ export function SuppliersPage() {
                       <p className="font-black text-white">{supplier.name_ar}</p>
                       <p className="text-xs text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
                     </td>
-                    <td className="whitespace-nowrap px-5 py-4"><StatusBadge status={supplier.status} /></td>
+
+                    <td className="whitespace-nowrap px-5 py-4">
+                      <StatusBadge status={supplier.status} />
+                    </td>
+
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">-</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatDate(supplier.updated_at || supplier.created_at)}</td>
+
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">
+                      {formatDate(supplier.updated_at || supplier.created_at)}
+                    </td>
+
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">-</td>
+
                     <td className="whitespace-nowrap px-5 py-4">
                       <div className="flex flex-nowrap gap-2">
-                        {parseCategories(supplier.category).length === 0 ? <span className="text-slate-500">-</span> : parseCategories(supplier.category).map((item) => (
-                          <span key={item} className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-200">{item}</span>
-                        ))}
+                        {parseCategories(supplier.category).length === 0 ? (
+                          <span className="text-slate-500">-</span>
+                        ) : (
+                          parseCategories(supplier.category).map((item) => (
+                            <span key={item} className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-200">
+                              {item}
+                            </span>
+                          ))
+                        )}
                       </div>
                     </td>
+
                     <td className="whitespace-nowrap px-5 py-4">
                       <div className="flex flex-nowrap items-center gap-2">
-                        <Link className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-200 hover:bg-slate-700" to={`/suppliers/${supplier.id}`} title="عرض الملف"><Eye className="h-4 w-4" /></Link>
-                        {canManageSuppliers(user?.role) && <button className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-blue-200 hover:bg-slate-700" onClick={() => setEditing(supplier)} title="تعديل"><Edit2 className="h-4 w-4" /></button>}
-                        {canArchiveSuppliers(user?.role) && <button className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" onClick={() => confirmArchive(supplier)} title="أرشفة"><Archive className="h-4 w-4" /></button>}
+                        <Link
+                          className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-200 hover:bg-slate-700"
+                          to={`/suppliers/${supplier.id}`}
+                          title="عرض الملف"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+
+                        {canManageSuppliers(user?.role) && (
+                          <button
+                            className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-blue-200 hover:bg-slate-700"
+                            onClick={() => setEditing(supplier)}
+                            title="تعديل"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {canArchiveSuppliers(user?.role) && (
+                          <button
+                            className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
+                            onClick={() => confirmArchive(supplier)}
+                            title="أرشفة"
+                          >
+                            <Archive className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -203,9 +315,13 @@ export function SuppliersPage() {
         <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4 text-sm text-slate-400">
           <span>عرض {rows.length} من {filtered.length}</span>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>السابق</Button>
+            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+              السابق
+            </Button>
             <span>{page} / {totalPages}</span>
-            <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>التالي</Button>
+            <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
+              التالي
+            </Button>
           </div>
         </div>
       </Card>
