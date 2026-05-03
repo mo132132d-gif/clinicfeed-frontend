@@ -172,3 +172,18 @@ export async function listSupplierPerformance() {
   const payload = await apiRequest<unknown>("/supplier-performance");
   return normalizeList<SupplierPerformance>(payload);
 }
+
+export async function importSuppliers(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+
+  return apiRequest<{
+    message: string;
+    imported: number;
+    skipped: number;
+    incomplete: number;
+  }>("/suppliers/import", {
+    method: "POST",
+    body: form,
+  });
+}

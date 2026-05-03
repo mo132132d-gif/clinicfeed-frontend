@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, Edit2, Eye, Plus, RefreshCw, Search } from "lucide-react";
+import { Archive, Edit2, Eye, Plus, RefreshCw, Search, Upload } from "lucide-react";
 import { categoryOptions, supplierStatuses } from "../../lib/constants";
 import { parseCategories, formatDate } from "../../lib/format";
 import { canArchiveSuppliers, canManageSuppliers, canCreateSupplier } from "../../lib/permissions";
-import { archiveSupplier, listSuppliers } from "../../services/supplierService";
+import { archiveSupplier, importSuppliers, listSuppliers } from "../../services/supplierService";
 import { useAuth } from "../auth/AuthProvider";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import type { Supplier } from "../../types";
@@ -36,6 +36,38 @@ export function SuppliersPage() {
     },
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت الأرشفة"),
   });
+
+  const importMutation = useMutation({
+    mutationFn: importSuppliers,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      setMessage(
+        `تم رفع الموردين بنجاح: ${result.imported} مورد، معلومات ناقصة: ${result.incomplete}، متجاوز: ${result.skipped}`
+      );
+    },
+    onError: (err) => {
+      setMessage(err instanceof Error ? err.message : "فشل رفع ملف الموردين");
+    },
+  });
+
+  function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    const allowed =
+      file.name.endsWith(".xlsx") ||
+      file.name.endsWith(".xls") ||
+      file.name.endsWith(".csv");
+
+    if (!allowed) {
+      setMessage("ارفع ملف Excel فقط بصيغة xlsx أو xls أو csv");
+      return;
+    }
+
+    importMutation.mutate(file);
+  }
 
   const filtered = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
@@ -84,11 +116,27 @@ export function SuppliersPage() {
               {categoryOptions.map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
           </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })}>
               <RefreshCw className="h-4 w-4" />
               تحديث
             </Button>
+
+            {canCreateSupplier(user?.role) && (
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-100 hover:bg-slate-700">
+                <Upload className="h-4 w-4" />
+                {importMutation.isPending ? "جاري رفع الملف..." : "رفع ملف Excel"}
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleImportFile}
+                  disabled={importMutation.isPending}
+                  className="hidden"
+                />
+              </label>
+            )}
+
             {canCreateSupplier(user?.role) && (
               <Button onClick={() => setEditing(null)}>
                 <Plus className="h-4 w-4" />
