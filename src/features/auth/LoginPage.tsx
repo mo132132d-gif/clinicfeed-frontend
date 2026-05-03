@@ -13,19 +13,18 @@ export function LoginPage() {
   if (isAuthenticated) return <Navigate to="/" replace />;
 
   async function handleSubmit(event: FormEvent) {
-  event.preventDefault();
+    event.preventDefault();
+    setLoading(true);
+    setError("");
 
-  localStorage.setItem("token", "demo-token");
-  localStorage.setItem("authToken", "demo-token");
-  localStorage.setItem("user", JSON.stringify({
-    name: "Demo Admin",
-    email: "admin@clinicfeed.com",
-    role: "admin"
-  }));
-
-  window.location.href = "/";
-  return;
-}
+    try {
+      await login(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "فشل تسجيل الدخول");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#0F172A] text-white">
@@ -64,7 +63,10 @@ export function LoginPage() {
         </section>
 
         <section className="flex items-center justify-center p-6">
-          <form onSubmit={handleSubmit} className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/95 p-8 shadow-2xl shadow-slate-950/60">
+          <form
+            onSubmit={handleSubmit}
+            className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/95 p-8 shadow-2xl shadow-slate-950/60"
+          >
             <div className="mb-8">
               <div className="mb-4 inline-flex rounded-2xl bg-blue-700 p-3">
                 <Lock className="h-6 w-6" />
@@ -73,7 +75,11 @@ export function LoginPage() {
               <p className="mt-2 text-sm text-slate-400">ادخل بيانات حسابك للوصول إلى لوحة الموردين.</p>
             </div>
 
-            {(error || message) && <div className="mb-5 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error || message}</div>}
+            {(error || message) && (
+              <div className="mb-5 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                {error || message}
+              </div>
+            )}
 
             <label className="mb-4 block">
               <span className="mb-2 block text-sm font-bold text-slate-200">البريد الإلكتروني</span>
