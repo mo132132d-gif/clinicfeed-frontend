@@ -40,8 +40,17 @@ export function SuppliersPage() {
   const previewMutation = useMutation({
     mutationFn: previewSupplierImport,
     onSuccess: (result) => {
+      const imported = result.importedSuppliers ?? result.imported ?? 0;
+      const updated = result.updatedSuppliers ?? result.updated ?? 0;
+      const contacts = result.importedContacts ?? result.contactsCreated ?? 0;
+      const skippedNoName = result.skippedRows ?? result.skipped ?? 0;
+      const errCount =
+        (Array.isArray(result.errors) ? result.errors.length : undefined) ??
+        (Array.isArray(result.failedRows) ? result.failedRows.length : undefined) ??
+        result.failed ??
+        0;
       setMessage(
-        `معاينة الملف: إجمالي الصفوف ${result.totalRows}، سيتم إضافة ${result.imported}، تحديث ${result.updated}، ناقصة ${result.incomplete}، فاشلة ${result.failed}`
+        `معاينة الملف: ${result.totalRows} صف؛ موردون جدد ${imported}، تحديث ${updated}، جهات اتصال جديدة ${contacts}، بدون اسم ${skippedNoName}، صفوف ناقص جوال ${result.missingPhone}، صفوف ناقص بريد ${result.missingEmail}، ناقصة بيانات ${result.incomplete}، أخطاء ${errCount}`
       );
     },
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت معاينة ملف الموردين"),
@@ -51,8 +60,17 @@ export function SuppliersPage() {
     mutationFn: importSuppliers,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      const imported = result.importedSuppliers ?? result.imported ?? 0;
+      const updated = result.updatedSuppliers ?? result.updated ?? 0;
+      const contacts = result.importedContacts ?? result.contactsCreated ?? 0;
+      const skippedNoName = result.skippedRows ?? result.skipped ?? 0;
+      const errCount =
+        (Array.isArray(result.errors) ? result.errors.length : undefined) ??
+        (Array.isArray(result.failedRows) ? result.failedRows.length : undefined) ??
+        result.failed ??
+        0;
       setMessage(
-        `نتيجة الاستيراد: تمت إضافة ${result.imported}، تحديث ${result.updated}، ناقصة ${result.incomplete}، فاشلة ${result.failed}`
+        `نتيجة الاستيراد: موردون جدد ${imported}، تحديث ${updated}، جهات اتصال جديدة ${contacts}، بدون اسم ${skippedNoName}، صفوف ناقص جوال ${result.missingPhone}، صفوف ناقص بريد ${result.missingEmail}، ناقصة بيانات ${result.incomplete}، أخطاء ${errCount}`
       );
     },
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشل رفع ملف الموردين"),

@@ -3,8 +3,27 @@ import { normalizeList, unwrapData } from "../lib/format";
 import type { ActivityLog, Contact, Contract, Supplier, SupplierDocument, SupplierPerformance } from "../types";
 
 export async function listSuppliers() {
-  const payload = await apiRequest<unknown>("/suppliers?limit=500");
-  return normalizeList<Supplier>(payload);
+  const chunkSize = 500;
+  const all: Supplier[] = [];
+  let offset = 0;
+
+  while (true) {
+    const payload = await apiRequest<{ data?: unknown; meta?: { total?: number } }>(
+      `/suppliers?limit=${chunkSize}&offset=${offset}`
+    );
+    const page = normalizeList<Supplier>(payload);
+    const total = payload.meta?.total;
+
+    all.push(...page);
+
+    if (page.length === 0) break;
+    if (typeof total === "number" && all.length >= total) break;
+    if (page.length < chunkSize) break;
+
+    offset += page.length;
+  }
+
+  return all;
 }
 
 export async function getSupplier(id: string) {
@@ -22,14 +41,14 @@ export async function createSupplier(data: Partial<Supplier>) {
 
 export async function updateSupplier(id: string, data: Partial<Supplier>) {
   const payload = await apiRequest<{ data: Supplier }>(`/suppliers/${id}`, {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
   return unwrapData<Supplier>(payload);
 }
 
 export async function archiveSupplier(id: string) {
-  const payload = await apiRequest<{ data: Supplier }>(`/suppliers/${id}/status`, {
+  const payload = await apiRequest<{ data: Supplier }>(`/suppliers/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status: "Inactive" }),
   });
@@ -37,21 +56,23 @@ export async function archiveSupplier(id: string) {
 }
 
 export async function listContacts(supplierId: string) {
-  const payload = await apiRequest<unknown>(`/suppliers/${supplierId}/contacts?limit=100`);
+  const payload = await apiRequest<unknown>(
+    `/contacts?supplier_id=${encodeURIComponent(supplierId)}&limit=500`
+  );
   return normalizeList<Contact>(payload);
 }
 
 export async function createContact(supplierId: string, data: Partial<Contact>) {
-  const payload = await apiRequest<{ data: Contact }>(`/suppliers/${supplierId}/contacts`, {
+  const payload = await apiRequest<{ data: Contact }>("/contacts", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, supplier_id: supplierId }),
   });
   return unwrapData<Contact>(payload);
 }
 
 export async function updateContact(id: string, data: Partial<Contact>) {
   const payload = await apiRequest<{ data: Contact }>(`/contacts/${id}`, {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
   return unwrapData<Contact>(payload);
@@ -67,7 +88,9 @@ export async function markPrimaryContact(id: string) {
 }
 
 export async function listContracts(supplierId: string) {
-  const payload = await apiRequest<unknown>(`/suppliers/${supplierId}/contracts?limit=100`);
+  const payload = await apiRequest<unknown>(
+    `/contracts?supplier_id=${encodeURIComponent(supplierId)}&limit=500`
+  );
   return normalizeList<Contract>(payload);
 }
 
@@ -83,16 +106,16 @@ export async function createContract(supplierId: string, data: Partial<Contract>
     return unwrapData<Contract>(payload);
   }
 
-  const payload = await apiRequest<{ data: Contract }>(`/suppliers/${supplierId}/contracts`, {
+  const payload = await apiRequest<{ data: Contract }>("/contracts", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, supplier_id: supplierId }),
   });
   return unwrapData<Contract>(payload);
 }
 
 export async function updateContract(id: string, data: Partial<Contract>, file?: File | null) {
   const payload = await apiRequest<{ data: Contract }>(`/contracts/${id}`, {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
   const contract = unwrapData<Contract>(payload);
@@ -109,7 +132,9 @@ export async function updateContract(id: string, data: Partial<Contract>, file?:
 }
 
 export async function listDocuments(supplierId: string) {
-  const payload = await apiRequest<unknown>(`/suppliers/${supplierId}/documents?limit=100`);
+  const payload = await apiRequest<unknown>(
+    `/documents?supplier_id=${encodeURIComponent(supplierId)}&limit=500`
+  );
   return normalizeList<SupplierDocument>(payload);
 }
 
@@ -125,16 +150,16 @@ export async function createDocument(supplierId: string, data: Partial<SupplierD
     return unwrapData<SupplierDocument>(payload);
   }
 
-  const payload = await apiRequest<{ data: SupplierDocument }>(`/suppliers/${supplierId}/documents`, {
+  const payload = await apiRequest<{ data: SupplierDocument }>("/documents", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, supplier_id: supplierId }),
   });
   return unwrapData<SupplierDocument>(payload);
 }
 
 export async function updateDocument(id: string, data: Partial<SupplierDocument>, file?: File | null) {
   const payload = await apiRequest<{ data: SupplierDocument }>(`/documents/${id}`, {
-    method: "PUT",
+    method: "PATCH",
     body: JSON.stringify(data),
   });
   const document = unwrapData<SupplierDocument>(payload);
@@ -151,7 +176,13 @@ export async function updateDocument(id: string, data: Partial<SupplierDocument>
 }
 
 export async function listSupplierActivity(supplierId: string) {
-  const payload = await apiRequest<unknown>(`/suppliers/${supplierId}/activity-logs`);
+  const params = new URLSearchParams({
+    entity_id: supplierId,
+    entity_type: "Supplier",
+    limit: "500",
+    offset: "0",
+  });
+  const payload = await apiRequest<unknown>(`/activity-logs?${params.toString()}`);
   return normalizeList<ActivityLog>(payload);
 }
 
@@ -188,6 +219,14 @@ export async function importSuppliers(file: File) {
     duplicates: number;
     failed: number;
     failedRows: Array<{ rowNumber: number; reason: string }>;
+    importedSuppliers: number;
+    updatedSuppliers: number;
+    importedContacts: number;
+    updatedContacts: number;
+    skippedRows: number;
+    missingPhone: number;
+    missingEmail: number;
+    errors: Array<{ rowNumber: number; reason: string }>;
   } }>("/suppliers/import", {
     method: "POST",
     body: form,
@@ -209,6 +248,14 @@ export async function previewSupplierImport(file: File) {
     contactsUpdated: number;
     skipped: number;
     incomplete: number;
+    importedSuppliers: number;
+    updatedSuppliers: number;
+    importedContacts: number;
+    updatedContacts: number;
+    skippedRows: number;
+    missingPhone: number;
+    missingEmail: number;
+    errors: Array<{ rowNumber: number; reason: string }>;
     duplicates: number;
     failed: number;
     failedRows: Array<{ rowNumber: number; reason: string }>;
