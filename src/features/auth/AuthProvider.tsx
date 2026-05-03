@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getStoredToken } from "../../services/api";
+import { login as loginRequest } from "../../services/authService";
 import type { User } from "../../types";
 
 interface AuthContextValue {
@@ -18,32 +19,49 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function getStoredUser(): User | null {
+  const storedUser = localStorage.getItem("user");
+
+  if (!storedUser) return null;
+
+  try {
+    return JSON.parse(storedUser) as User;
+  } catch {
+    localStorage.removeItem("user");
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState(getStoredToken());
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(token));
+  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  const [isLoading, setIsLoading] = useState(Boolean(getStoredToken()));
   const [message, setMessage] = useState("");
   const queryClient = useQueryClient();
 
   async function refreshUser() {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = getStoredUser();
 
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      setUser(storedUser);
       return;
     }
 
-    if (getStoredToken()) {
-      const demoUser = {
-        id: "demo-user",
-        name: "Demo Admin",
-        email: "admin@clinicfeed.com",
-        role: "admin",
-      } as User;
+    const storedToken = getStoredToken();
 
-      localStorage.setItem("user", JSON.stringify(demoUser));
-      setUser(demoUser);
+    if (!storedToken) {
+      setToken("");
+      setUser(null);
+      return;
     }
+
+    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+
+    setToken("");
+    setUser(null);
+    queryClient.clear();
   }
 
   useEffect(() => {
@@ -78,24 +96,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [message]);
 
-  async function login(email: string, _password: string) {
+  async function login(email: string, password: string) {
     setMessage("");
 
-    const demoToken = "demo-token";
+    const response = await loginRequest(email.trim(), password);
 
-    const demoUser = {
-      id: "demo-user",
-      name: "Demo Admin",
-      email: email,
-      role: "admin",
-    } as User;
+    const accessToken = response.token;
+    const loginUser = response.user;
 
-    localStorage.setItem("token", demoToken);
-    localStorage.setItem("authToken", demoToken);
-    localStorage.setItem("user", JSON.stringify(demoUser));
+    if (!accessToken || !loginUser) {
+      throw new Error("بيانات تسجيل الدخول غير مكتملة من الخادم");
+    }
 
-    setToken(demoToken);
-    setUser(demoUser);
+    localStorage.setItem("token", accessToken);
+    localStorage.setItem("authToken", accessToken);
+    localStorage.setItem("user", JSON.stringify(loginUser));
+
+    setToken(accessToken);
+    setUser(loginUser);
   }
 
   function logout(customMessage = "") {
@@ -113,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       token,
-      isAuthenticated: Boolean(token),
+      isAuthenticated: Boolean(token && user),
       isLoading,
       message,
       setMessage,
