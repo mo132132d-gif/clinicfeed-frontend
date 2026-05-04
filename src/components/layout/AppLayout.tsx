@@ -1,28 +1,28 @@
-import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
+﻿import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import {
   Activity,
   Bell,
   LayoutDashboard,
   LogOut,
   Menu,
-  Moon,
   Search,
   Settings,
-  Sun,
   UserCircle,
   Users,
-  X,
+  
+  Ticket,X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../features/auth/AuthProvider";
-import { roleLabels, THEME_KEY } from "../../lib/constants";
+import { roleLabels } from "../../lib/constants";
 import { canManageUsers } from "../../lib/permissions";
 import { Button, cn } from "../shared/Primitives";
 
 const baseNavigation = [
   { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
   { name: "الموردين", href: "/suppliers", icon: Users },
+  { name: "تذاكر الطلبات", href: "/request-tickets", icon: Ticket },
   { name: "سجل النشاط", href: "/activity", icon: Activity },
   { name: "حسابي", href: "/account", icon: UserCircle },
 ];
@@ -32,6 +32,13 @@ function pageInfo(pathname: string) {
     return {
       title: "لوحة التحكم",
       subtitle: "نظرة تشغيلية على الموردين والمؤشرات والتنبيهات",
+    };
+  }
+
+  if (pathname === "/request-tickets") {
+    return {
+      title: "تذاكر الطلبات",
+      subtitle: "إنشاء ومتابعة طلبات العملاء اليدوية",
     };
   }
 
@@ -79,18 +86,16 @@ function pageInfo(pathname: string) {
 export function AppLayout() {
   const { user, isAuthenticated, isLoading, logout, message, setMessage } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [headerSearch, setHeaderSearch] = useState("");
-  const [dark, setDark] = useState(() => localStorage.getItem(THEME_KEY) === "dark");
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
-    document.documentElement.style.colorScheme = dark ? "dark" : "light";
-  }, [dark]);
+    document.documentElement.classList.add("dark");
+    document.documentElement.style.colorScheme = "dark";
+    localStorage.removeItem("clinicfeed_theme");
+  }, []);
 
   const navigation = useMemo(() => {
     const items = [...baseNavigation];
@@ -123,17 +128,8 @@ export function AppLayout() {
     navigate("/login", { replace: true });
   }
 
-  function toggleSidebar() {
-    if (window.innerWidth < 1024) {
-      setSidebarOpen((value) => !value);
-      return;
-    }
-
-    setSidebarCollapsed((value) => !value);
-  }
-
   return (
-    <div dir="rtl" className="flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div dir="rtl" className="flex min-h-screen bg-slate-950 text-slate-100">
       {message && (
         <div className="fixed left-6 top-24 z-[60] rounded-2xl border border-blue-500/30 bg-blue-950 px-4 py-3 text-sm font-bold text-blue-100 shadow-xl">
           {message}
@@ -142,41 +138,32 @@ export function AppLayout() {
 
       {sidebarOpen && (
         <button
-          className="fixed inset-0 z-40 bg-slate-950/60 lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/60 md:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-label="إغلاق القائمة"
         />
       )}
 
-      <button
-        className="fixed right-4 top-4 z-[70] rounded-xl border border-slate-200 bg-white/95 p-2 text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800"
-        onClick={toggleSidebar}
-        aria-label="إظهار أو إخفاء القائمة الجانبية"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex flex-col border-l border-slate-200 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-950 lg:sticky lg:top-0 lg:translate-x-0",
-          sidebarCollapsed ? "w-[270px] lg:w-20" : "w-[270px]",
-          sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0",
+          "fixed inset-y-0 right-0 z-50 flex w-[270px] flex-col border-l border-slate-800 bg-slate-950 transition-all duration-300 md:sticky md:top-0 md:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "translate-x-full md:translate-x-0",
         )}
       >
-        <div className="relative flex h-32 items-center justify-center border-b border-slate-200 px-5 dark:border-slate-800">
+        <div className="relative flex h-20 items-center justify-center border-b border-slate-800 px-5 md:h-24">
           <Link
             to="/"
-            className={cn("flex h-28 items-center justify-center overflow-hidden rounded-2xl", sidebarCollapsed ? "w-14 lg:w-14" : "w-full")}
+            className="flex w-full items-center justify-center"
           >
             <img
               src="/clinicfeed-logo.png.svg"
               alt="ClinicFeed"
-              className="h-28 w-auto scale-[2.8] object-contain"
+              className="block h-16 w-auto max-w-none object-contain scale-[3.2]"
             />
           </Link>
 
           <button
-            className="absolute left-4 rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900 lg:hidden"
+            className="absolute left-4 rounded-lg p-2 text-slate-400 hover:bg-slate-900 md:hidden"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-5 w-5" />
@@ -202,7 +189,7 @@ export function AppLayout() {
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                <span className={cn(sidebarCollapsed ? "lg:hidden" : "block")}>{item.name}</span>
+                <span>{item.name}</span>
               </Link>
             );
           })}
@@ -219,10 +206,11 @@ export function AppLayout() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex min-h-20 items-center gap-4 border-b border-slate-200 bg-white/90 px-4 pr-16 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 sm:px-6 sm:pr-16 lg:px-8 lg:pr-8">
+        <header className="sticky top-0 z-30 flex min-h-20 items-center gap-3 border-b border-slate-800 bg-slate-950/90 px-4 backdrop-blur-xl sm:px-6 md:px-8">
           <button
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 lg:hidden"
-            onClick={() => setSidebarOpen(true)}
+            className="rounded-xl border border-slate-800 bg-slate-900 p-2 text-slate-300 md:hidden"
+            onClick={() => setSidebarOpen((value) => !value)}
+            aria-label="إظهار أو إخفاء القائمة الجانبية"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -263,14 +251,6 @@ export function AppLayout() {
             <Bell className="h-5 w-5" />
           </button>
 
-          <button
-            className="rounded-xl border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            onClick={() => setDark((value) => !value)}
-            title={dark ? "الوضع الفاتح" : "الوضع الداكن"}
-          >
-            {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </button>
-
           <Button variant="ghost" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             خروج
@@ -284,3 +264,7 @@ export function AppLayout() {
     </div>
   );
 }
+
+
+
+

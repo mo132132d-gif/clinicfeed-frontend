@@ -121,3 +121,32 @@ export interface ApiList<T> {
     offset?: number;
   };
 }
+
+export interface RequestTicket {
+  id: string;
+  ticket_number: string;
+  customer_name: string;
+  phone?: string | null;
+  email?: string | null;
+  country?: string | null;
+  region?: string | null;
+  request_description?: string | null;
+  assigned_to?: string | null;
+  status:
+    | "new"
+    | "under_review"
+    | "waiting_customer"
+    | "waiting_supplier"
+    | "quotation_sent"
+    | "in_progress"
+    | "completed"
+    | "cancelled";
+  priority?: string | null;
+  source?: string | null;
+  internal_notes?: string | null;
+  cancellation_reason?: string | null;
+  qr_code?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  closed_at?: string | null;
+}
