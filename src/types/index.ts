@@ -1,4 +1,4 @@
-export type Role = "admin" | "operations" | "sales" | "viewer";
+export type Role = "admin" | "manager" | "operations" | "sales" | "viewer";
 
 export type SupplierStatus = "Active" | "Pending" | "Suspended" | "Inactive" | "Blacklisted";
 export type ContractStatus = "Active" | "Expired" | "Terminated";

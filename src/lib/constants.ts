@@ -29,6 +29,7 @@ export const documentTypes: Array<{ value: DocumentType; label: string }> = [
 
 export const roleLabels: Record<Role, string> = {
   admin: "مدير النظام",
+  manager: "مدير",
   operations: "العمليات",
   sales: "المبيعات",
   viewer: "مشاهدة فقط",

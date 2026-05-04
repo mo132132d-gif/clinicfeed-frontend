@@ -12,7 +12,7 @@ import type { Supplier } from "../../types";
 import { Button, Card, EmptyState, Input, LoadingState, Select, StatusBadge } from "../../components/shared/Primitives";
 import { SupplierFormModal } from "./SupplierFormModal";
 
-const pageSize = 10;
+const pageSize = 25;
 
 export function SuppliersPage() {
   const { user, setMessage } = useAuth();
@@ -245,16 +245,16 @@ export function SuppliersPage() {
           <EmptyState title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات موردين"} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1200px] table-auto text-right text-sm">
+            <table className="min-w-[1500px] table-auto text-right text-sm">
               <thead className="bg-slate-950 text-slate-400">
                 <tr>
-                  <th className="px-5 py-4 font-black">اسم المورد</th>
-                  <th className="px-5 py-4 font-black">الحالة</th>
-                  <th className="px-5 py-4 font-black">عدد المنتجات</th>
-                  <th className="px-5 py-4 font-black">آخر تحديث</th>
-                  <th className="px-5 py-4 font-black">التقييم</th>
-                  <th className="px-5 py-4 font-black">التصنيفات</th>
-                  <th className="px-5 py-4 font-black">الإجراءات</th>
+                  <th className="min-w-[260px] px-5 py-4 font-black">اسم المورد</th>
+                  <th className="min-w-[130px] px-5 py-4 font-black">الحالة</th>
+                  <th className="min-w-[140px] px-5 py-4 font-black">عدد المنتجات</th>
+                  <th className="min-w-[160px] px-5 py-4 font-black">آخر تحديث</th>
+                  <th className="min-w-[120px] px-5 py-4 font-black">التقييم</th>
+                  <th className="min-w-[300px] px-5 py-4 font-black">التصنيفات</th>
+                  <th className="min-w-[220px] px-5 py-4 font-black">الإجراءات</th>
                 </tr>
               </thead>
 
@@ -263,7 +263,7 @@ export function SuppliersPage() {
                   <tr key={supplier.id} className="hover:bg-slate-900/70">
                     <td className="whitespace-nowrap px-5 py-4">
                       <p className="font-black text-white">{supplier.name_ar}</p>
-                      <p className="text-xs text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
+                      <p className="truncate text-xs text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
                     </td>
 
                     <td className="whitespace-nowrap px-5 py-4">

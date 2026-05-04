@@ -1,6 +1,7 @@
 import { LEGACY_TOKEN_KEYS, TOKEN_KEY } from "../lib/constants";
 
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+export const API_URL = configuredApiUrl || (import.meta.env.DEV ? "http://localhost:4000/api" : "");
 
 export class ApiError extends Error {
   status: number;
@@ -26,6 +27,10 @@ export function clearStoredToken() {
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  if (!API_URL) {
+    throw new ApiError("VITE_API_URL غير مهيأ لبيئة الإنتاج", 0);
+  }
+
   const token = getStoredToken();
   const isFormData = options.body instanceof FormData;
   const headers = new Headers(options.headers);

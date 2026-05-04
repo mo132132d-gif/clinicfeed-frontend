@@ -10,7 +10,7 @@ import { useAuth } from "../auth/AuthProvider";
 import type { Role, User } from "../../types";
 import { Button, Card, EmptyState, Field, Input, LoadingState, Modal, Select } from "../../components/shared/Primitives";
 
-const roles: Role[] = ["admin", "operations", "sales", "viewer"];
+const roles: Role[] = ["admin", "manager", "operations", "sales", "viewer"];
 
 export function UsersPage() {
   const { user, setMessage } = useAuth();
@@ -99,8 +99,6 @@ function UserModal({ user, onClose }: { user?: User | null; onClose: () => void 
         name: form.name,
         email: form.email,
         role: form.role as Role,
-        department_or_task: form.department_or_task,
-        phone: form.phone,
         is_active: form.is_active,
       };
       if (!user) payload.password = form.password;

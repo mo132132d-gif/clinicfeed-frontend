@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getStoredToken } from "../../services/api";
+import { getStoredToken, setStoredToken } from "../../services/api";
 import { login as loginRequest } from "../../services/authService";
 import type { User } from "../../types";
 
@@ -41,12 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function refreshUser() {
     const storedUser = getStoredUser();
-
-    if (storedUser) {
-      setUser(storedUser);
-      return;
-    }
-
     const storedToken = getStoredToken();
 
     if (!storedToken) {
@@ -55,13 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("user");
+    if (storedUser) {
+      setUser(storedUser);
+      return;
+    }
 
-    setToken("");
-    setUser(null);
-    queryClient.clear();
+    // Keep legacy key for backward-compatible logout flows.
+    setStoredToken(storedToken);
   }
 
   useEffect(() => {
@@ -108,8 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("بيانات تسجيل الدخول غير مكتملة من الخادم");
     }
 
-    localStorage.setItem("token", accessToken);
-    localStorage.setItem("authToken", accessToken);
+    setStoredToken(accessToken);
     localStorage.setItem("user", JSON.stringify(loginUser));
 
     setToken(accessToken);

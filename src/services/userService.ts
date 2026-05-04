@@ -7,19 +7,17 @@ export interface UserFormPayload {
   email?: string;
   password?: string;
   role: Role;
-  department_or_task?: string;
-  phone?: string;
   is_active: boolean;
 }
 
 export async function listUsers(search = "") {
   const query = search ? `?q=${encodeURIComponent(search)}&limit=100` : "?limit=100";
-  const payload = await apiRequest<unknown>(`/users${query}`);
+  const payload = await apiRequest<unknown>(`/auth/users${query}`);
   return normalizeList<User>(payload);
 }
 
 export async function createUser(data: UserFormPayload) {
-  const payload = await apiRequest<{ data: User }>("/users", {
+  const payload = await apiRequest<{ data: User }>("/auth/users", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -27,7 +25,7 @@ export async function createUser(data: UserFormPayload) {
 }
 
 export async function updateUser(id: string, data: Partial<UserFormPayload>) {
-  const payload = await apiRequest<{ data: User }>(`/users/${id}`, {
+  const payload = await apiRequest<{ data: User }>(`/auth/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
@@ -35,7 +33,7 @@ export async function updateUser(id: string, data: Partial<UserFormPayload>) {
 }
 
 export async function setUserStatus(id: string, is_active: boolean) {
-  const payload = await apiRequest<{ data: User }>(`/users/${id}/status`, {
+  const payload = await apiRequest<{ data: User }>(`/auth/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ is_active }),
   });
@@ -43,7 +41,7 @@ export async function setUserStatus(id: string, is_active: boolean) {
 }
 
 export async function resetUserPassword(id: string, password: string) {
-  const payload = await apiRequest<{ data: User }>(`/users/${id}/reset-password`, {
+  const payload = await apiRequest<{ data: User }>(`/auth/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ password }),
   });

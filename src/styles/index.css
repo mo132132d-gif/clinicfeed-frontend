@@ -2,8 +2,8 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: dark;
-  background: #0F172A;
+  color-scheme: light;
+  background: #f8fafc;
 }
 
 * {
@@ -19,8 +19,8 @@ body,
 
 body {
   font-family: 'Cairo', system-ui, sans-serif;
-  background: #0F172A;
-  color: #f8fafc;
+  background: #f8fafc;
+  color: #0f172a;
 }
 
 button,
@@ -43,6 +43,11 @@ td {
 
 .dark {
   color-scheme: dark;
+}
+
+.dark body {
+  background: #0F172A;
+  color: #f8fafc;
 }
 
 ::-webkit-scrollbar {
