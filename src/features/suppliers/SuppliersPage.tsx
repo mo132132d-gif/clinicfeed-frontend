@@ -277,38 +277,38 @@ export function SuppliersPage() {
           <EmptyState title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات موردين"} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] table-auto bg-slate-950 text-right text-sm">
+            <table className="w-full min-w-[760px] table-auto bg-slate-950 text-right text-sm">
               <thead className="bg-[#050B18] text-slate-300">
                 <tr>
-                  <th className="min-w-[900px] px-5 py-4 font-black text-center">اسم المورد</th>
-                  <th className="min-w-[900px] px-5 py-4 font-black text-center">الحالة</th>
-                  <th className="min-w-[900px] px-5 py-4 font-black text-center">آخر تحديث</th>
-                  <th className="min-w-[900px] px-5 py-4 text-center font-black">التقييم</th>
-                  <th className="min-w-[900px] px-5 py-4 font-black text-center">التصنيفات</th>
+                  <th className="w-[260px] px-3 py-4 font-black text-center">اسم المورد</th>
+                  <th className="w-[120px] px-3 py-4 font-black text-center">الحالة</th>
+                  <th className="w-[130px] px-3 py-4 font-black text-center">آخر تحديث</th>
+                  <th className="w-[100px] px-3 py-4 text-center font-black">التقييم</th>
+                  <th className="w-[260px] px-3 py-4 font-black text-center">التصنيفات</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-800 bg-slate-950">
                 {rows.map((supplier) => (
                   <tr key={supplier.id} onClick={() => { window.location.href = `/suppliers/${supplier.id}`; }} className="group cursor-pointer bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70">
-                    <td className="whitespace-nowrap px-5 py-4">
-                      <p className="font-black text-blue-200 underline-offset-4 group-hover:underline">{supplier.name_ar || supplier.name_en || "-"}</p>
+                    <td className="whitespace-nowrap px-3 py-4">
+                      <p className="font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</p>
                       <p className="truncate text-xs text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
                     </td>
 
-                    <td className="whitespace-nowrap px-5 py-4">
+                    <td className="whitespace-nowrap px-3 py-4">
                       <StatusBadge status={supplier.status} />
                     </td>
 
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">-</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-slate-400">-</td>
 
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">
+                    <td className="whitespace-nowrap px-3 py-4 text-slate-400">
                       {formatDate(supplier.updated_at || supplier.created_at)}
                     </td>
 
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">-</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-slate-400">-</td>
 
-                    <td className="whitespace-nowrap px-5 py-4">
+                    <td className="whitespace-nowrap px-3 py-4">
                       <div className="flex flex-nowrap gap-2">
                         {parseCategories(supplier.category).length === 0 ? (
                           <span className="text-slate-500">-</span>
@@ -328,7 +328,7 @@ export function SuppliersPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4 text-sm text-slate-400">
+        <div className="flex items-center justify-between border-t border-slate-800 px-3 py-4 text-sm text-slate-400">
           <span>عرض {rows.length} من {filtered.length}</span>
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
@@ -369,6 +369,7 @@ function supplierRating(supplier: Supplier) {
 
   return values.rating ?? values.internal_rating ?? values.average_rating ?? "-";
 }
+
 
 
 
