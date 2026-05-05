@@ -1,11 +1,18 @@
 import { FormEvent, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, Edit2, Eye, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import type { RequestTicket, RequestTicketsSummary, Supplier } from "../../types";
 import { useAuth } from "../auth/AuthProvider";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { formatCurrency, formatDate, formatNumber } from "../../lib/format";
 import { canManageSuppliers } from "../../lib/permissions";
+import {
+  normalizeRequestTicketStatus,
+  requestTicketStatusBadgeClass,
+  requestTicketStatusLabel,
+  requestTicketStatusOptions,
+  type RequestTicketStatus,
+} from "../../lib/requestTicketStatus";
 import { listSuppliers } from "../../services/supplierService";
 import {
   createRequestTicket,
@@ -30,17 +37,6 @@ import {
 
 const pageSize = 25;
 
-const statusOptions = [
-  { value: "new", label: "جديدة", className: "border-blue-500/30 bg-blue-500/10 text-blue-200" },
-  { value: "under_review", label: "قيد المراجعة", className: "border-purple-500/30 bg-purple-500/10 text-purple-200" },
-  { value: "waiting_customer", label: "بانتظار العميل", className: "border-yellow-500/30 bg-yellow-500/10 text-yellow-200" },
-  { value: "waiting_supplier", label: "بانتظار المورد", className: "border-orange-500/30 bg-orange-500/10 text-orange-200" },
-  { value: "quotation_sent", label: "تم إرسال عرض السعر", className: "border-cyan-500/30 bg-cyan-500/10 text-cyan-200" },
-  { value: "in_progress", label: "قيد التنفيذ", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" },
-  { value: "completed", label: "منفذة", className: "border-green-500/30 bg-green-500/10 text-green-200" },
-  { value: "cancelled", label: "ملغية", className: "border-rose-500/30 bg-rose-500/10 text-rose-200" },
-] as const;
-
 const viewOptions = [
   { value: "pending", label: "الطلبات المعلقة" },
   { value: "completed", label: "الطلبات المنفذة" },
@@ -64,15 +60,13 @@ const sourceOptions = [
   "أخرى",
 ];
 
-type TicketStatus = RequestTicket["status"];
+type TicketStatus = RequestTicketStatus;
 type ViewValue = RequestTicketParams["view"];
 
 function StatusBadge({ status }: { status?: string | null }) {
-  const item = statusOptions.find((option) => option.value === status);
-
   return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${item?.className || "border-slate-700 bg-slate-800 text-slate-200"}`}>
-      {item?.label || status || "-"}
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${requestTicketStatusBadgeClass(status)}`}>
+      {requestTicketStatusLabel(status)}
     </span>
   );
 }
@@ -86,7 +80,7 @@ function emptyForm(): Partial<RequestTicket> {
     region: "",
     request_description: "",
     assigned_to: "",
-    status: "new",
+    status: "pending",
     priority: "medium",
     source: "",
     internal_notes: "",
@@ -99,7 +93,7 @@ function emptyForm(): Partial<RequestTicket> {
 }
 
 function ticketStatus(ticket: RequestTicket) {
-  return String(ticket.status || "").toLowerCase();
+  return normalizeRequestTicketStatus(ticket.status);
 }
 
 function isCancelledTicket(ticket: RequestTicket) {
@@ -107,7 +101,7 @@ function isCancelledTicket(ticket: RequestTicket) {
 }
 
 function isExecutedTicket(ticket: RequestTicket) {
-  return ["completed", "executed"].includes(ticketStatus(ticket));
+  return ticketStatus(ticket) === "completed";
 }
 
 function matchesView(ticket: RequestTicket, view?: ViewValue) {
@@ -180,6 +174,22 @@ function linkedSuppliers(ticket: RequestTicket, suppliers: Supplier[]) {
 
   const ids = new Set(extractSupplierIds(ticket));
   return suppliers.filter((supplier) => ids.has(String(supplier.id)));
+}
+
+function updateTicketInRequestTicketQueries(queryClient: QueryClient, updatedTicket: RequestTicket) {
+  const normalizedStatus = normalizeRequestTicketStatus(updatedTicket.status);
+  const nextTicket = { ...updatedTicket, status: normalizedStatus };
+
+  queryClient.setQueriesData<RequestTicket[]>({ queryKey: ["requestTickets"] }, (current) => {
+    if (!current) return current;
+    return current.map((ticket) => (
+      ticket.id === updatedTicket.id
+        ? { ...ticket, ...nextTicket, status: normalizedStatus }
+        : ticket
+    ));
+  });
+
+  return nextTicket;
 }
 
 export function RequestTicketsPage() {
@@ -284,6 +294,40 @@ export function RequestTicketsPage() {
     },
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشل حذف التذكرة"),
   });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: RequestTicketStatus }) => updateRequestTicket(id, { status }),
+    onSuccess: (updatedTicket, variables) => {
+      const nextTicket = updateTicketInRequestTicketQueries(queryClient, {
+        ...updatedTicket,
+        id: updatedTicket.id || variables.id,
+        status: updatedTicket.status || variables.status,
+      });
+
+      setDetails((current) => (
+        current?.id === variables.id
+          ? { ...current, ...nextTicket }
+          : current
+      ));
+
+      queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
+      queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardRequestTicketsSummary"] });
+      setMessage("تم تحديث حالة الطلب");
+    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل تحديث حالة الطلب"),
+  });
+
+  function changeTicketStatus(ticket: RequestTicket, status: RequestTicketStatus) {
+    if (!canManage) {
+      setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
+      return;
+    }
+
+    const normalizedStatus = normalizeRequestTicketStatus(status);
+    if (normalizedStatus === ticketStatus(ticket)) return;
+    statusMutation.mutate({ id: ticket.id, status: normalizedStatus });
+  }
 
   function confirmDelete(ticket: RequestTicket) {
     if (!canManage) {
@@ -413,7 +457,7 @@ export function RequestTicketsPage() {
             }}
           >
             <option value="all">كل الحالات</option>
-            {statusOptions.map((item) => (
+            {requestTicketStatusOptions.map((item) => (
               <option key={item.value} value={item.value}>{item.label}</option>
             ))}
           </Select>
@@ -458,7 +502,12 @@ export function RequestTicketsPage() {
                   <p className="text-xs font-bold text-slate-500">رقم التذكرة</p>
                   <h2 className="mt-1 truncate text-base font-black text-white">{ticket.ticket_number}</h2>
                 </div>
-                <StatusBadge status={ticket.status} />
+                <TicketStatusSelect
+                  ticket={ticket}
+                  canManage={canManage}
+                  disabled={statusMutation.isPending}
+                  onChange={changeTicketStatus}
+                />
               </div>
 
               <p className="mt-3 font-black text-white">{ticket.customer_name}</p>
@@ -528,7 +577,14 @@ export function RequestTicketsPage() {
                       <p className="text-xs text-slate-500" dir="ltr">{ticket.email || "-"}</p>
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400" dir="ltr">{ticket.phone || "-"}</td>
-                    <td className="whitespace-nowrap px-5 py-4"><StatusBadge status={ticket.status} /></td>
+                    <td className="whitespace-nowrap px-5 py-4">
+                      <TicketStatusSelect
+                        ticket={ticket}
+                        canManage={canManage}
+                        disabled={statusMutation.isPending}
+                        onChange={changeTicketStatus}
+                      />
+                    </td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">{ticket.assigned_to || "-"}</td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">{[ticket.country, ticket.region].filter(Boolean).join(" / ") || "-"}</td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatDate(ticket.created_at)}</td>
@@ -621,6 +677,41 @@ function Info({ label, value }: { label: string; value?: string | number | null 
       <p className="text-xs font-bold text-slate-500">{label}</p>
       <p className="mt-1 font-black text-slate-100">{value || "-"}</p>
     </div>
+  );
+}
+
+function TicketStatusSelect({
+  ticket,
+  canManage,
+  disabled,
+  onChange,
+}: {
+  ticket: RequestTicket;
+  canManage: boolean;
+  disabled?: boolean;
+  onChange: (ticket: RequestTicket, status: RequestTicketStatus) => void;
+}) {
+  const status = normalizeRequestTicketStatus(ticket.status);
+
+  if (!canManage) {
+    return <StatusBadge status={status} />;
+  }
+
+  return (
+    <select
+      value={status}
+      disabled={disabled}
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => onChange(ticket, event.target.value as RequestTicketStatus)}
+      className={`h-9 rounded-full border px-3 py-1 text-xs font-black outline-none transition disabled:cursor-not-allowed disabled:opacity-60 ${requestTicketStatusBadgeClass(status)}`}
+      aria-label="حالة الطلب"
+    >
+      {requestTicketStatusOptions.map((item) => (
+        <option key={item.value} value={item.value}>
+          {item.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -730,6 +821,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
 
   const mutation = useMutation({
     mutationFn: () => {
+      const normalizedStatus = normalizeRequestTicketStatus(form.status);
       const payload: Partial<RequestTicket> = {
         customer_name: form.customer_name?.trim() || "",
         phone: form.phone?.trim() || null,
@@ -738,11 +830,11 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
         region: form.region?.trim() || null,
         request_description: form.request_description?.trim() || "",
         assigned_to: form.assigned_to?.trim() || null,
-        status: form.status || "new",
+        status: normalizedStatus,
         priority: form.priority || "medium",
         source: form.source?.trim() || null,
         internal_notes: form.internal_notes?.trim() || null,
-        cancellation_reason: form.status === "cancelled" ? form.cancellation_reason?.trim() || null : null,
+        cancellation_reason: normalizedStatus === "cancelled" ? form.cancellation_reason?.trim() || null : null,
         supplier_ids: selectedSupplierIds,
         order_amount: optionalNumber(form.order_amount),
         vat_amount: optionalNumber(form.vat_amount),
@@ -751,7 +843,8 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
 
       return ticket ? updateRequestTicket(ticket.id, payload) : createRequestTicket(payload);
     },
-    onSuccess: () => {
+    onSuccess: (savedTicket) => {
+      updateTicketInRequestTicketQueries(queryClient, savedTicket);
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
       queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardRequestTicketsSummary"] });
@@ -831,8 +924,8 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           </Field>
 
           <Field label="الحالة" required>
-            <Select value={form.status || "new"} onChange={(event) => setForm({ ...form, status: event.target.value as TicketStatus })}>
-              {statusOptions.map((item) => (
+            <Select value={normalizeRequestTicketStatus(form.status)} onChange={(event) => setForm({ ...form, status: event.target.value as TicketStatus })}>
+              {requestTicketStatusOptions.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
               ))}
             </Select>
@@ -902,7 +995,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           <Textarea value={form.internal_notes || ""} onChange={(event) => setForm({ ...form, internal_notes: event.target.value })} />
         </Field>
 
-        {form.status === "cancelled" && (
+        {normalizeRequestTicketStatus(form.status) === "cancelled" && (
           <Field label="سبب الإلغاء">
             <Textarea value={form.cancellation_reason || ""} onChange={(event) => setForm({ ...form, cancellation_reason: event.target.value })} />
           </Field>

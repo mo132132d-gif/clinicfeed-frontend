@@ -139,11 +139,7 @@ export interface RequestTicket {
   request_description?: string | null;
   assigned_to?: string | null;
   status:
-    | "new"
-    | "under_review"
-    | "waiting_customer"
-    | "waiting_supplier"
-    | "quotation_sent"
+    | "pending"
     | "in_progress"
     | "completed"
     | "cancelled";
