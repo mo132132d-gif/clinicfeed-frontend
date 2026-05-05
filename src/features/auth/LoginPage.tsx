@@ -1,13 +1,27 @@
-import { FormEvent, useState } from "react";
+﻿import { FormEvent, useState } from "react";
 import { Navigate } from "react-router";
 import { Eye, EyeOff, Mail, ShieldCheck } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 
+function ClinicFeedLogo() {
+  return (
+    <div className="flex h-24 w-80 items-center justify-center overflow-visible">
+      <img
+        src="/clinicfeed-logo.png.svg"
+        alt="ClinicFeed"
+        className="block h-16 w-auto max-w-none object-contain"
+        style={{ transform: "scale(4.2)", transformOrigin: "center" }}
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 export function LoginPage() {
   const { isAuthenticated, login, message } = useAuth();
 
-  const [email, setEmail] = useState("admin@clinicfeed.com");
-  const [password, setPassword] = useState("Admin123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(message);
   const [loading, setLoading] = useState(false);
@@ -30,17 +44,11 @@ export function LoginPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#0F172A] text-white">
+    <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#0F172A] text-white">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
         <section className="hidden border-l border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950/80 p-10 lg:flex lg:flex-col lg:justify-between">
-          <div className="flex items-center">
-            <div className="flex h-24 w-56 items-center justify-center overflow-hidden">
-              <img
-                src="/clinicfeed-logo.png.svg"
-                alt="ClinicFeed"
-                className="h-24 w-auto scale-[2.6] object-contain"
-              />
-            </div>
+          <div className="flex items-center justify-start">
+            <ClinicFeedLogo />
           </div>
 
           <div className="max-w-xl space-y-6">
@@ -70,18 +78,15 @@ export function LoginPage() {
           </div>
         </section>
 
-        <section className="flex items-center justify-center p-6">
+        <section className="flex min-h-screen items-center justify-center p-5 sm:p-6">
           <form
             onSubmit={handleSubmit}
-            className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/95 p-8 shadow-2xl shadow-slate-950/60"
+            autoComplete="off"
+            className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl shadow-slate-950/60 sm:p-8"
           >
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-6 flex h-24 w-56 items-center justify-center overflow-hidden">
-                <img
-                  src="/clinicfeed-logo.png.svg"
-                  alt="ClinicFeed"
-                  className="h-24 w-auto scale-[2.6] object-contain"
-                />
+              <div className="mx-auto mb-6 flex items-center justify-center">
+                <ClinicFeedLogo />
               </div>
 
               <h2 className="text-3xl font-black">تسجيل الدخول</h2>
@@ -109,6 +114,7 @@ export function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="off"
                   className="h-12 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 pr-11 text-left text-white outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                   required
                 />
@@ -126,6 +132,7 @@ export function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="new-password"
                   className="h-12 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 pl-11 text-left text-white outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                   required
                 />

@@ -2,8 +2,8 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: light;
-  background: #f8fafc;
+  color-scheme: dark;
+  background: #0F172A;
 }
 
 * {
@@ -15,12 +15,13 @@ body,
 #root {
   min-height: 100%;
   margin: 0;
+  overflow-x: hidden;
 }
 
 body {
   font-family: 'Cairo', system-ui, sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  background: #0F172A;
+  color: #f8fafc;
 }
 
 button,

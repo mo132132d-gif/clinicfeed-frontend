@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api"
 const TOKEN_KEY = "clinicfeed_token"
-const THEME_KEY = "clinicfeed_theme"
 
 const supplierStatuses = [
   { value: "Active", label: "نشط" },
@@ -318,13 +317,78 @@ function CategorySelector({ value, onChange }) {
   )
 }
 
+function ClinicFeedLogo({ variant = "desktop" }) {
+  return (
+    <img
+      src="/clinicfeed-logo.png.svg"
+      alt="ClinicFeed"
+      className={cx(
+        "block w-auto object-contain",
+        variant === "mobile"
+          ? "h-10 max-h-[44px] max-w-[140px]"
+          : "h-12 max-h-[52px] max-w-[170px]",
+      )}
+    />
+  )
+}
+
+function normalizePhoneForWhatsapp(value) {
+  const digits = String(value || "").replace(/\D/g, "")
+  if (!digits) return ""
+  if (digits.startsWith("966")) return digits
+  if (digits.startsWith("0")) return `966${digits.slice(1)}`
+  if (digits.length === 9 && digits.startsWith("5")) return `966${digits}`
+  return digits
+}
+
+function ContactLink({ type, value }) {
+  if (!value) return <span className="text-slate-400">-</span>
+
+  if (type === "email") {
+    return (
+      <a
+        href={`mailto:${value}`}
+        className="break-all font-semibold text-blue-700 underline-offset-4 hover:underline dark:text-blue-300"
+      >
+        {value}
+      </a>
+    )
+  }
+
+  const whatsappNumber = normalizePhoneForWhatsapp(value)
+
+  return (
+    <details className="relative inline-block">
+      <summary className="cursor-pointer list-none font-semibold text-blue-700 underline-offset-4 hover:underline dark:text-blue-300">
+        {value}
+      </summary>
+      <div className="absolute right-0 z-40 mt-2 min-w-36 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+        <a
+          href={`https://wa.me/${whatsappNumber}`}
+          target="_blank"
+          rel="noreferrer"
+          className="block px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          واتساب
+        </a>
+        <a
+          href={`tel:${value}`}
+          className="block px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          اتصال
+        </a>
+      </div>
+    </details>
+  )
+}
+
 export default function App() {
-  const [email, setEmail] = useState("admin@clinicfeed.com")
-  const [password, setPassword] = useState("Admin123!")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "")
   const [user, setUser] = useState(null)
   const [page, setPage] = useState("dashboard")
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem(THEME_KEY) === "dark")
+  const [darkMode] = useState(true)
   const [suppliers, setSuppliers] = useState([])
   const [contacts, setContacts] = useState([])
   const [contracts, setContracts] = useState([])
@@ -351,8 +415,8 @@ export default function App() {
   const canUpload = ["admin", "operations"].includes(role)
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode)
-    localStorage.setItem(THEME_KEY, darkMode ? "dark" : "light")
+    document.documentElement.classList.add("dark")
+    document.documentElement.style.colorScheme = "dark"
   }, [darkMode])
 
   useEffect(() => {
@@ -826,21 +890,21 @@ export default function App() {
 
   if (!token) {
     return (
-      <div dir="rtl" className="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div dir="rtl" className="relative min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <div className="flex min-h-screen items-center justify-center p-6">
           <Card className="w-full max-w-md p-6">
             <div className="mb-6">
-              <p className="text-sm font-semibold text-emerald-600">ClinicFeed</p>
+              <ClinicFeedLogo variant="desktop" />
               <h1 className="mt-2 text-2xl font-bold">نظام إدارة الموردين</h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">تسجيل الدخول للوحة الداخلية</p>
             </div>
             {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-200">{error}</div>}
             <div className="space-y-4">
               <Field label="البريد الإلكتروني">
-                <input className={cx(inputClass(), "text-left")} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input className={cx(inputClass(), "text-left")} value={email} autoComplete="off" onChange={(e) => setEmail(e.target.value)} />
               </Field>
               <Field label="كلمة المرور">
-                <input className={cx(inputClass(), "text-left")} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <input className={cx(inputClass(), "text-left")} type="password" value={password} autoComplete="new-password" onChange={(e) => setPassword(e.target.value)} />
               </Field>
               <PrimaryButton onClick={login} disabled={loading} className="w-full">
                 {loading ? "جاري الدخول..." : "دخول"}
@@ -853,12 +917,12 @@ export default function App() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="min-h-screen lg:pr-64">
-        <aside className="border-b border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:fixed lg:right-0 lg:top-0 lg:z-40 lg:h-screen lg:w-64 lg:border-b-0 lg:border-l lg:p-5">
-          <div className="mb-5">
-            <div className="text-2xl font-black text-blue-700 dark:text-blue-300">ClinicFeed</div>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">إدارة الموردين والمستندات</p>
+    <div dir="rtl" className="relative min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="min-h-screen lg:pr-64 lg:before:fixed lg:before:right-0 lg:before:top-0 lg:before:bottom-0 lg:before:z-0 lg:before:w-64 lg:before:bg-slate-900">
+        <aside className="relative z-40 min-h-screen border-b border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:fixed lg:right-0 lg:top-0 lg:bottom-0 lg:h-screen lg:w-64 lg:border-b-0 lg:border-l lg:p-5">
+          <div className="mb-5 flex flex-col items-start">
+            <ClinicFeedLogo variant="desktop" />
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">إدارة الموردين والمستندات</p>
           </div>
           <nav className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-1">
             {[
@@ -896,9 +960,6 @@ export default function App() {
                 <div className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
                   {user?.name || user?.email || role}
                 </div>
-                <SecondaryButton onClick={() => setDarkMode((value) => !value)}>
-                  {darkMode ? "الوضع الفاتح" : "الوضع الداكن"}
-                </SecondaryButton>
                 <SecondaryButton onClick={refreshAll} disabled={loading}>{loading ? "جاري التحديث..." : "تحديث البيانات"}</SecondaryButton>
                 <DangerButton onClick={() => logout()}>تسجيل الخروج</DangerButton>
               </div>
@@ -996,51 +1057,107 @@ export default function App() {
   }
 
   function SupplierTable({ rows }) {
+    if (loading) {
+      return (
+        <Card>
+          <EmptyState title="جاري تحميل البيانات..." subtitle="يرجى الانتظار." />
+        </Card>
+      )
+    }
+
+    if (rows.length === 0) {
+      return (
+        <Card>
+          <EmptyState
+            title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات"}
+            subtitle="جرّب تغيير البحث أو أضف موردًا جديدًا."
+          />
+        </Card>
+      )
+    }
+
     return (
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1600px] table-auto text-right">
-            <thead className="bg-slate-50 text-xs font-bold text-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
-              <tr>
-                <th className="min-w-[220px] px-4 py-3">اسم المورد عربي</th>
-                <th className="min-w-[220px] px-4 py-3">اسم المورد إنجليزي</th>
-                <th className="min-w-[120px] px-4 py-3">المدينة</th>
-                <th className="min-w-[260px] px-4 py-3">التصنيفات</th>
-                <th className="min-w-[170px] px-4 py-3">رقم السجل التجاري</th>
-                <th className="min-w-[170px] px-4 py-3">الرقم الضريبي</th>
-                <th className="min-w-[140px] px-4 py-3">الحالة</th>
-                <th className="min-w-[130px] px-4 py-3">آخر تحديث</th>
-                <th className="min-w-[300px] px-4 py-3">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {loading ? (
-                <tr><td colSpan="9" className="px-4 py-10 text-center text-slate-500">جاري تحميل البيانات...</td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan="9"><EmptyState title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات"} subtitle="جرّب تغيير البحث أو أضف موردًا جديدًا." /></td></tr>
-              ) : rows.map((supplier) => (
-                <tr key={supplier.id} className="align-top hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="whitespace-nowrap px-4 py-4 font-semibold">{supplier.name_ar || "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-4 text-slate-600 dark:text-slate-300">{supplier.name_en || "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-4">{supplier.city || "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-4"><CategoryBadges value={supplier.category} /></td>
-                  <td className="whitespace-nowrap px-4 py-4 font-mono text-xs">{supplier.cr_number || "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-4 font-mono text-xs">{supplier.vat_number || "-"}</td>
-                  <td className="px-4 py-4"><StatusBadge status={supplier.status} /></td>
-                  <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-500">{formatDate(supplier.updated_at || supplier.created_at)}</td>
-                  <td className="whitespace-nowrap px-4 py-4">
-                    <div className="inline-flex flex-nowrap items-center gap-2">
-                      <SecondaryButton onClick={() => openSupplierProfile(supplier)}>عرض الملف</SecondaryButton>
-                      {canEdit && <SecondaryButton onClick={() => setModal({ type: "supplier", existing: supplier, form: supplierFormFrom(supplier) })}>تعديل</SecondaryButton>}
-                      {canArchive && supplier.status !== "Inactive" && <DangerButton onClick={() => archiveSupplier(supplier)} disabled={saving}>أرشفة</DangerButton>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <>
+        <div className="grid gap-3 lg:hidden">
+          {rows.map((supplier) => (
+            <button
+              key={supplier.id}
+              onClick={() => openSupplierProfile(supplier)}
+              className="w-full rounded-xl border border-slate-200 bg-white p-4 text-right shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-black">
+                    {supplier.name_ar || supplier.name_en || "مورد بدون اسم"}
+                  </h3>
+                  <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">
+                    {supplier.name_en || supplier.city || "-"}
+                  </p>
+                </div>
+                <StatusBadge status={supplier.status} />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">المدينة</p>
+                  <p className="mt-1 font-bold">{supplier.city || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">آخر تحديث</p>
+                  <p className="mt-1 font-bold">{formatDate(supplier.updated_at || supplier.created_at)}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">التصنيف</p>
+                  <div className="mt-2 overflow-hidden">
+                    <CategoryBadges value={supplier.category} />
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
-      </Card>
+
+        <Card className="hidden overflow-hidden lg:block">
+          <div className="overflow-x-auto">
+            <table className="min-w-[1600px] table-auto text-right">
+              <thead className="bg-slate-50 text-xs font-bold text-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
+                <tr>
+                  <th className="min-w-[220px] px-4 py-3">اسم المورد عربي</th>
+                  <th className="min-w-[220px] px-4 py-3">اسم المورد إنجليزي</th>
+                  <th className="min-w-[120px] px-4 py-3">المدينة</th>
+                  <th className="min-w-[260px] px-4 py-3">التصنيفات</th>
+                  <th className="min-w-[170px] px-4 py-3">رقم السجل التجاري</th>
+                  <th className="min-w-[170px] px-4 py-3">الرقم الضريبي</th>
+                  <th className="min-w-[140px] px-4 py-3">الحالة</th>
+                  <th className="min-w-[130px] px-4 py-3">آخر تحديث</th>
+                  <th className="min-w-[300px] px-4 py-3">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {rows.map((supplier) => (
+                  <tr key={supplier.id} className="align-top hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="whitespace-nowrap px-4 py-4 font-semibold">{supplier.name_ar || "-"}</td>
+                    <td className="whitespace-nowrap px-4 py-4 text-slate-600 dark:text-slate-300">{supplier.name_en || "-"}</td>
+                    <td className="whitespace-nowrap px-4 py-4">{supplier.city || "-"}</td>
+                    <td className="whitespace-nowrap px-4 py-4"><CategoryBadges value={supplier.category} /></td>
+                    <td className="whitespace-nowrap px-4 py-4 font-mono text-xs">{supplier.cr_number || "-"}</td>
+                    <td className="whitespace-nowrap px-4 py-4 font-mono text-xs">{supplier.vat_number || "-"}</td>
+                    <td className="px-4 py-4"><StatusBadge status={supplier.status} /></td>
+                    <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-500">{formatDate(supplier.updated_at || supplier.created_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-4">
+                      <div className="inline-flex flex-nowrap items-center gap-2">
+                        <SecondaryButton onClick={() => openSupplierProfile(supplier)}>عرض الملف</SecondaryButton>
+                        {canEdit && <SecondaryButton onClick={() => setModal({ type: "supplier", existing: supplier, form: supplierFormFrom(supplier) })}>تعديل</SecondaryButton>}
+                        {canArchive && supplier.status !== "Inactive" && <DangerButton onClick={() => archiveSupplier(supplier)} disabled={saving}>أرشفة</DangerButton>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </>
     )
   }
 
@@ -1145,9 +1262,9 @@ export default function App() {
                 <tr key={contact.id}>
                   <td className="break-words px-4 py-4 font-semibold">{contact.name || "-"}</td>
                   <td className="break-words px-4 py-4">{contact.position || "-"}</td>
-                  <td className="break-words px-4 py-4 dir-ltr">{contact.phone || "-"}</td>
-                  <td className="break-words px-4 py-4 dir-ltr">{contact.whatsapp || "-"}</td>
-                  <td className="break-words px-4 py-4">{contact.email || "-"}</td>
+                  <td className="break-words px-4 py-4 dir-ltr"><ContactLink type="phone" value={contact.phone} /></td>
+                  <td className="break-words px-4 py-4 dir-ltr"><ContactLink type="phone" value={contact.whatsapp} /></td>
+                  <td className="break-words px-4 py-4"><ContactLink type="email" value={contact.email} /></td>
                   <td className="px-4 py-4">{contact.is_primary ? "أساسي" : "غير أساسي"}</td>
                   <td className="px-4 py-4">
                     {canEdit && <div className="flex flex-wrap gap-2">
@@ -1669,3 +1786,7 @@ export default function App() {
     )
   }
 }
+
+
+
+

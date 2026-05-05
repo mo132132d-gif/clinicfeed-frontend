@@ -2,7 +2,6 @@ import type { ContractStatus, DocumentType, Role, SupplierStatus } from "../type
 
 export const TOKEN_KEY = "clinicfeed_token";
 export const LEGACY_TOKEN_KEYS = ["token", "authToken"];
-export const THEME_KEY = "clinicfeed_theme";
 
 export const supplierStatuses: Array<{ value: SupplierStatus; label: string }> = [
   { value: "Active", label: "نشط" },

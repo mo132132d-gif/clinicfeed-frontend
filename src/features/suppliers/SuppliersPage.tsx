@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Edit2, Eye, Plus, RefreshCw, Search, Upload } from "lucide-react";
@@ -133,6 +133,7 @@ export function SuppliersPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const hasRows = rows.length > 0;
 
   function confirmArchive(supplier: Supplier) {
     if (!canArchiveSuppliers(user?.role)) {
@@ -236,7 +237,38 @@ export function SuppliersPage() {
         </div>
       </Card>
 
-      <Card className="overflow-hidden">
+      {hasRows && (
+        <div className="grid gap-3 md:hidden">
+          {rows.map((supplier) => (
+            <Link
+              key={supplier.id}
+              to={`/suppliers/${supplier.id}`}
+              className="rounded-xl border border-slate-800 bg-[#111827] p-4 shadow-sm transition hover:border-blue-700"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="truncate text-base font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</h2>
+                  {supplier.name_en && <p className="mt-1 truncate text-xs text-slate-500" dir="ltr">{supplier.name_en}</p>}
+                </div>
+                <StatusBadge status={supplier.status} />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs font-bold text-slate-500">التقييم</p>
+                  <p className="mt-1 font-black text-slate-100">{supplierRating(supplier)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-500">آخر تحديث</p>
+                  <p className="mt-1 font-black text-slate-100">{formatDate(supplier.updated_at || supplier.created_at)}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <Card className={hasRows ? "hidden overflow-hidden md:block" : "overflow-hidden"}>
         {suppliersQuery.isLoading ? (
           <LoadingState label="جاري تحميل الموردين..." />
         ) : suppliersQuery.error ? (
@@ -245,22 +277,22 @@ export function SuppliersPage() {
           <EmptyState title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات موردين"} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1500px] table-auto text-right text-sm">
-              <thead className="bg-slate-950 text-slate-400">
+            <table className="w-full min-w-[1500px] table-auto bg-slate-950 text-right text-sm">
+              <thead className="bg-[#050B18] text-slate-300">
                 <tr>
-                  <th className="min-w-[260px] px-5 py-4 font-black">اسم المورد</th>
-                  <th className="min-w-[130px] px-5 py-4 font-black">الحالة</th>
-                  <th className="min-w-[140px] px-5 py-4 font-black">عدد المنتجات</th>
-                  <th className="min-w-[160px] px-5 py-4 font-black">آخر تحديث</th>
-                  <th className="min-w-[120px] px-5 py-4 font-black">التقييم</th>
-                  <th className="min-w-[300px] px-5 py-4 font-black">التصنيفات</th>
-                  <th className="min-w-[220px] px-5 py-4 font-black">الإجراءات</th>
+                  <th className="min-w-[260px] px-5 py-4 font-black text-center">اسم المورد</th>
+                  <th className="min-w-[130px] px-5 py-4 font-black text-center">الحالة</th>
+                  <th className="min-w-[140px] px-5 py-4 text-center font-black">عدد المنتجات</th>
+                  <th className="min-w-[160px] px-5 py-4 font-black text-center">آخر تحديث</th>
+                  <th className="min-w-[120px] px-5 py-4 text-center font-black">التقييم</th>
+                  <th className="min-w-[300px] px-5 py-4 font-black text-center">التصنيفات</th>
+                  <th className="min-w-[220px] px-5 py-4 text-center font-black">الإجراءات</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-slate-800 bg-slate-950">
                 {rows.map((supplier) => (
-                  <tr key={supplier.id} className="hover:bg-slate-900/70">
+                  <tr key={supplier.id} className="group bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70">
                     <td className="whitespace-nowrap px-5 py-4">
                       <p className="font-black text-white">{supplier.name_ar}</p>
                       <p className="truncate text-xs text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
@@ -343,6 +375,35 @@ export function SuppliersPage() {
           </div>
         </div>
       </Card>
+
+      {hasRows && (
+        <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#111827] px-4 py-3 text-sm text-slate-400 md:hidden">
+          <span>عرض {rows.length} من {filtered.length}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+              السابق
+            </Button>
+            <span>{page} / {totalPages}</span>
+            <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
+              التالي
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+function supplierRating(supplier: Supplier) {
+  const values = supplier as Supplier & {
+    rating?: string | number | null;
+    internal_rating?: string | number | null;
+    average_rating?: string | number | null;
+  };
+
+  return values.rating ?? values.internal_rating ?? values.average_rating ?? "-";
+}
+
+
+
+

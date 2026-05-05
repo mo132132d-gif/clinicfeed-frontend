@@ -8,8 +8,6 @@ import {
   Activity,
   Settings,
   RefreshCw,
-  Moon,
-  Sun,
   LogOut,
   User,
   Menu,
@@ -33,24 +31,14 @@ const navigation = [
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    const shouldUseDark = savedTheme === "dark";
-
-    setIsDark(shouldUseDark);
-    document.documentElement.classList.toggle("dark", shouldUseDark);
+    document.documentElement.classList.add("dark");
+    document.documentElement.style.colorScheme = "dark";
+    localStorage.removeItem("theme");
   }, []);
-
-  function toggleTheme() {
-    const nextTheme = !isDark;
-    setIsDark(nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme);
-    localStorage.setItem("theme", nextTheme ? "dark" : "light");
-  }
 
   function handleRefresh() {
     window.location.reload();
@@ -106,10 +94,10 @@ export function Layout() {
         <div className="flex h-24 items-center justify-between px-6 border-b border-brand-800">
           <Link to="/" className="flex flex-1 items-center justify-center">
             <img
-            src="/clinicfeed-logo.png.svg"
+              src="/clinicfeed-logo.png.svg"
               alt="ClinicFeed"
-            className="h-14 w-auto max-w-[180px] object-contain"
-            /<
+              className="block h-16 w-auto max-w-none object-contain scale-[3.2]"
+            />
           </Link>
 
           <button
@@ -192,14 +180,6 @@ export function Layout() {
                 <RefreshCw size={20} />
               </button>
 
-              <button
-                onClick={toggleTheme}
-                className="p-2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 hover:bg-slate-100 rounded-full dark:bg-slate-800 dark:hover:bg-slate-700 dark:hover:text-white"
-                title={isDark ? "الوضع الفاتح" : "الوضع الداكن"}
-              >
-                {isDark ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
-
               <div
                 className="hidden lg:block h-6 w-px bg-slate-200 dark:bg-slate-700"
                 aria-hidden="true"
@@ -237,3 +217,5 @@ export function Layout() {
     </div>
   );
 }
+
+

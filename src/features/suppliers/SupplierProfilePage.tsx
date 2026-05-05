@@ -90,6 +90,7 @@ export function SupplierProfilePage() {
   const contracts = contractsQuery.data || [];
   const documents = documentsQuery.data || [];
   const performance = performanceQuery.data;
+  const primaryContact = contacts.find((contact) => contact.is_primary);
   const cancellationRate = percentage(performance?.cancelled_orders, performance?.total_orders);
   const fulfillmentRate = percentage(performance?.fulfilled_orders, performance?.total_orders);
   const avgScore = scoreAverage(performance);
@@ -187,8 +188,8 @@ export function SupplierProfilePage() {
           <Card className="p-5">
             <h2 className="mb-4 text-lg font-black text-white">البيانات الأساسية</h2>
             <div className="grid gap-4 md:grid-cols-2">
-              <InfoBlock label="البريد الإلكتروني" value={contacts.find((contact) => contact.is_primary)?.email} />
-              <InfoBlock label="رقم الجوال" value={contacts.find((contact) => contact.is_primary)?.phone} />
+              <InfoBlock label="البريد الإلكتروني" value={<EmailLink email={primaryContact?.email} />} />
+              <InfoBlock label="رقم الجوال" value={<PhoneActionMenu phone={primaryContact?.phone || primaryContact?.whatsapp} />} />
               <InfoBlock label="العنوان" value={supplier.city} />
               <InfoBlock label="الموقع الإلكتروني" value="-" />
             </div>
@@ -209,8 +210,8 @@ export function SupplierProfilePage() {
                 <tr key={contact.id}>
                   <td className="whitespace-nowrap px-4 py-3 font-bold text-white">{contact.name}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-400">{contact.position || "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-400" dir="ltr">{contact.email || "-"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-400" dir="ltr">{contact.phone || "-"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-400" dir="ltr"><EmailLink email={contact.email} /></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-400" dir="ltr"><PhoneActionMenu phone={contact.phone || contact.whatsapp} /></td>
                   <td className="whitespace-nowrap px-4 py-3">{contact.is_primary ? "أساسي" : "غير أساسي"}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     {canManageSuppliers(user?.role) && <div className="flex flex-nowrap gap-2">
@@ -279,8 +280,49 @@ function Info({ label, value, ltr = false }: { label: string; value?: string | n
   return <div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 font-bold text-white" dir={ltr ? "ltr" : "rtl"}>{value || "-"}</p></div>;
 }
 
-function InfoBlock({ label, value }: { label: string; value?: string | null }) {
+function InfoBlock({ label, value }: { label: string; value?: ReactNode }) {
   return <div className="rounded-xl border border-slate-800 bg-slate-950 p-4"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 font-bold text-white">{value || "-"}</p></div>;
+}
+
+function normalizeWhatsAppNumber(phone: string) {
+  return phone.replace(/[^\d]/g, "");
+}
+
+function PhoneActionMenu({ phone }: { phone?: string | null }) {
+  const [open, setOpen] = useState(false);
+
+  if (!phone) return <span className="text-slate-500">-</span>;
+
+  const whatsappNumber = normalizeWhatsAppNumber(phone);
+
+  return (
+    <span className="relative inline-block">
+      <span className="hidden md:inline" dir="ltr">{phone}</span>
+      <button
+        type="button"
+        className="font-bold text-blue-200 underline-offset-4 hover:underline md:hidden"
+        onClick={() => setOpen((value) => !value)}
+        dir="ltr"
+      >
+        {phone}
+      </button>
+      {open && (
+        <span className="absolute right-0 top-full z-20 mt-2 grid min-w-32 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 text-right shadow-xl md:hidden">
+          <a className="px-4 py-3 text-sm font-bold text-emerald-200 hover:bg-slate-800" href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer">
+            WhatsApp
+          </a>
+          <a className="px-4 py-3 text-sm font-bold text-blue-200 hover:bg-slate-800" href={`tel:${phone}`}>
+            Call
+          </a>
+        </span>
+      )}
+    </span>
+  );
+}
+
+function EmailLink({ email }: { email?: string | null }) {
+  if (!email) return <span className="text-slate-500">-</span>;
+  return <a className="text-blue-200 underline-offset-4 hover:underline" href={`mailto:${email}`} dir="ltr">{email}</a>;
 }
 
 function TableCard({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
@@ -311,20 +353,22 @@ function ContactModal({ supplierId, contact, onClose }: { supplierId: string; co
 
 function ContractModal({ supplierId, contract, onClose }: { supplierId: string; contract?: Contract | null; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const { setMessage } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ contract_number: contract?.contract_number || "", contract_type: contract?.contract_type || "", start_date: formatDate(contract?.start_date) === "-" ? "" : formatDate(contract?.start_date), end_date: formatDate(contract?.end_date) === "-" ? "" : formatDate(contract?.end_date), status: contract?.status || "Active", owner: contract?.owner || "", notes: contract?.notes || "" });
-  const mutation = useMutation({ mutationFn: () => contract ? updateContract(contract.id, form, file) : createContract(supplierId, form, file), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["supplier", supplierId, "contracts"] }); onClose(); }, onError: () => setError("فشل رفع الملف") });
+  const mutation = useMutation({ mutationFn: () => contract ? updateContract(contract.id, form, file) : createContract(supplierId, form, file), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["supplier", supplierId, "contracts"] }); setMessage("تم حفظ العقد بنجاح"); onClose(); }, onError: () => { setError("فشل رفع الملف"); setMessage("فشل رفع الملف"); } });
   function submit(event: FormEvent) { event.preventDefault(); const err = fileValidation(file); if (err) return setError(err); if (!contract && !file) return setError("الملف مطلوب"); mutation.mutate(); }
   return <Modal title={contract ? "تعديل عقد" : "إضافة عقد"} onClose={onClose}><form className="space-y-4" onSubmit={submit}>{error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-rose-200">{error}</div>}<div className="grid gap-4 md:grid-cols-2"><Field label="رقم العقد" required><Input value={form.contract_number} onChange={(e) => setForm({ ...form, contract_number: e.target.value })} required /></Field><Field label="نوع العقد"><Input value={form.contract_type} onChange={(e) => setForm({ ...form, contract_type: e.target.value })} /></Field><Field label="تاريخ البداية" required><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required /></Field><Field label="تاريخ النهاية" required><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} required /></Field><Field label="الحالة"><Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Contract["status"] })}>{contractStatuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field><Field label="المالك"><Input value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} /></Field><Field label="ملف العقد"><Input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] || null)} />{file && <p className="mt-2 text-xs text-slate-400">{file.name}</p>}</Field></div><Field label="ملاحظات"><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field><div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose} type="button">إلغاء</Button><Button disabled={mutation.isPending} type="submit">{mutation.isPending ? "جاري الرفع..." : "حفظ"}</Button></div></form></Modal>;
 }
 
 function DocumentModal({ supplierId, document, onClose }: { supplierId: string; document?: SupplierDocument | null; onClose: () => void }) {
   const queryClient = useQueryClient();
+  const { setMessage } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ type: document?.type || "CR", expiry_date: formatDate(document?.expiry_date) === "-" ? "" : formatDate(document?.expiry_date), last_updated: formatDate(document?.last_updated) === "-" ? "" : formatDate(document?.last_updated) });
-  const mutation = useMutation({ mutationFn: () => document ? updateDocument(document.id, form, file) : createDocument(supplierId, form, file), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["supplier", supplierId, "documents"] }); onClose(); }, onError: () => setError("فشل رفع الملف") });
+  const mutation = useMutation({ mutationFn: () => document ? updateDocument(document.id, form, file) : createDocument(supplierId, form, file), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["supplier", supplierId, "documents"] }); setMessage("تم حفظ المستند بنجاح"); onClose(); }, onError: () => { setError("فشل رفع الملف"); setMessage("فشل رفع الملف"); } });
   function submit(event: FormEvent) { event.preventDefault(); const err = fileValidation(file); if (err) return setError(err); if (!document && !file) return setError("الملف مطلوب"); mutation.mutate(); }
   return <Modal title={document ? "تعديل مستند" : "رفع مستند"} onClose={onClose}><form className="space-y-4" onSubmit={submit}>{error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-rose-200">{error}</div>}<div className="grid gap-4 md:grid-cols-2"><Field label="نوع المستند" required><Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as SupplierDocument["type"] })}>{documentTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field><Field label="تاريخ الانتهاء"><Input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} /></Field><Field label="تاريخ الإصدار / التحديث"><Input type="date" value={form.last_updated} onChange={(e) => setForm({ ...form, last_updated: e.target.value })} /></Field><Field label="ملف المستند"><Input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] || null)} />{file && <p className="mt-2 text-xs text-slate-400">{file.name}</p>}</Field></div><div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose} type="button">إلغاء</Button><Button disabled={mutation.isPending} type="submit">{mutation.isPending ? "جاري الرفع..." : "حفظ"}</Button></div></form></Modal>;
 }

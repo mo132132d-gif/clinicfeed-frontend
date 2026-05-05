@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+﻿import { apiRequest } from "./api";
 import { normalizeList, unwrapData } from "../lib/format";
 import type { ActivityLog, Contact, Contract, Supplier, SupplierDocument, SupplierPerformance } from "../types";
 
@@ -266,3 +266,4 @@ export async function previewSupplierImport(file: File) {
 
   return unwrapData(payload);
 }
+

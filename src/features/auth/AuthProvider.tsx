@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getStoredToken, setStoredToken } from "../../services/api";
-import { login as loginRequest } from "../../services/authService";
+import { getMe, login as loginRequest } from "../../services/authService";
 import type { User } from "../../types";
 
 interface AuthContextValue {
@@ -19,29 +19,34 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function getStoredUser(): User | null {
-  const storedUser = localStorage.getItem("user");
+function clearStoredCredentialArtifacts() {
+  const sensitiveKeys = [
+    "user",
+    "email",
+    "username",
+    "password",
+    "clinicfeed_email",
+    "clinicfeed_username",
+    "clinicfeed_password",
+    "rememberedEmail",
+    "rememberedUsername",
+  ];
 
-  if (!storedUser) return null;
-
-  try {
-    return JSON.parse(storedUser) as User;
-  } catch {
-    localStorage.removeItem("user");
-    return null;
+  for (const storage of [localStorage, sessionStorage]) {
+    for (const key of sensitiveKeys) storage.removeItem(key);
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState(getStoredToken());
-  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(getStoredToken()));
   const [message, setMessage] = useState("");
   const queryClient = useQueryClient();
 
   async function refreshUser() {
-    const storedUser = getStoredUser();
     const storedToken = getStoredToken();
+    clearStoredCredentialArtifacts();
 
     if (!storedToken) {
       setToken("");
@@ -49,13 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (storedUser) {
-      setUser(storedUser);
-      return;
-    }
-
-    // Keep legacy key for backward-compatible logout flows.
     setStoredToken(storedToken);
+    setUser(await getMe());
   }
 
   useEffect(() => {
@@ -64,14 +64,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    refreshUser().finally(() => setIsLoading(false));
+    refreshUser()
+      .catch(() => {
+        setToken("");
+        setUser(null);
+      })
+      .finally(() => setIsLoading(false));
   }, [token]);
 
   useEffect(() => {
     const handler = () => {
       localStorage.removeItem("token");
       localStorage.removeItem("authToken");
-      localStorage.removeItem("user");
+      localStorage.removeItem("clinicfeed_token");
+      clearStoredCredentialArtifacts();
 
       setToken("");
       setUser(null);
@@ -92,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     setMessage("");
+    clearStoredCredentialArtifacts();
 
     const response = await loginRequest(email.trim(), password);
 
@@ -103,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setStoredToken(accessToken);
-    localStorage.setItem("user", JSON.stringify(loginUser));
+    clearStoredCredentialArtifacts();
 
     setToken(accessToken);
     setUser(loginUser);
@@ -112,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout(customMessage = "") {
     localStorage.removeItem("token");
     localStorage.removeItem("authToken");
-    localStorage.removeItem("user");
+    localStorage.removeItem("clinicfeed_token");
+    clearStoredCredentialArtifacts();
 
     setToken("");
     setUser(null);

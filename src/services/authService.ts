@@ -1,4 +1,4 @@
-import { apiRequest, clearStoredToken, setStoredToken } from "./api";
+import { apiRequest, clearStoredToken } from "./api";
 import { unwrapData } from "../lib/format";
 import type { User } from "../types";
 
@@ -9,7 +9,6 @@ export async function login(email: string, password: string) {
   });
   const data = unwrapData<{ token: string; user: User }>(payload);
   if (!data?.token) throw new Error("لم يرجع الخادم رمز الدخول");
-  setStoredToken(data.token);
   return data;
 }
 

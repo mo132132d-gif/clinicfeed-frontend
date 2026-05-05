@@ -18,7 +18,7 @@ export function getStoredToken() {
 
 export function setStoredToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem("token", token);
+  for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key);
 }
 
 export function clearStoredToken() {
