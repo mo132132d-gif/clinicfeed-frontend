@@ -35,6 +35,54 @@ function normalizeRequestTicketPayload(data: Partial<RequestTicket>) {
   };
 }
 
+function compactPayload<T extends Record<string, unknown>>(payload: T) {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
+}
+
+function requestTicketCreatePayload(data: Partial<RequestTicket>) {
+  const normalized = normalizeRequestTicketPayload(data);
+
+  return compactPayload({
+    customer_name: normalized.customer_name,
+    phone: normalized.phone,
+    email: normalized.email,
+    country: normalized.country,
+    region: normalized.region,
+    request_description: normalized.request_description,
+    assigned_to: normalized.assigned_to,
+    status: normalized.status,
+    priority: normalized.priority,
+    source: normalized.source,
+    internal_notes: normalized.internal_notes,
+    cancellation_reason: normalized.cancellation_reason,
+    supplier_ids: Array.isArray(normalized.supplier_ids) ? normalized.supplier_ids.map(String) : undefined,
+    order_amount: normalized.order_amount,
+    vat_amount: normalized.vat_amount,
+    total_amount: normalized.total_amount,
+  });
+}
+
+function requestTicketUpdatePayload(data: Partial<RequestTicket>) {
+  const normalized = normalizeRequestTicketPayload(data);
+
+  return compactPayload({
+    customer_name: normalized.customer_name,
+    phone: normalized.phone,
+    email: normalized.email,
+    country: normalized.country,
+    region: normalized.region,
+    request_description: normalized.request_description,
+    assigned_to: normalized.assigned_to,
+    status: normalized.status,
+    priority: normalized.priority,
+    source: normalized.source,
+    internal_notes: normalized.internal_notes,
+    cancellation_reason: normalized.cancellation_reason,
+    order_amount: normalized.order_amount,
+    vat_amount: normalized.vat_amount,
+  });
+}
+
 export async function listRequestTickets(params?: RequestTicketParams) {
   const query = new URLSearchParams();
   appendRequestTicketParams(query, params);
@@ -53,7 +101,7 @@ export async function getRequestTicket(id: string) {
 export async function createRequestTicket(data: Partial<RequestTicket>) {
   const payload = await apiRequest<{ data: RequestTicket }>("/request-tickets", {
     method: "POST",
-    body: JSON.stringify(normalizeRequestTicketPayload(data)),
+    body: JSON.stringify(requestTicketCreatePayload(data)),
   });
 
   return unwrapData<RequestTicket>(payload);
@@ -62,7 +110,7 @@ export async function createRequestTicket(data: Partial<RequestTicket>) {
 export async function updateRequestTicket(id: string, data: Partial<RequestTicket>) {
   const payload = await apiRequest<{ data: RequestTicket }>(`/request-tickets/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(normalizeRequestTicketPayload(data)),
+    body: JSON.stringify(requestTicketUpdatePayload(data)),
   });
 
   return unwrapData<RequestTicket>(payload);

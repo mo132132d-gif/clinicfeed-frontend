@@ -60,6 +60,8 @@ const sourceOptions = [
   "أخرى",
 ];
 
+const statusOptionClassName = "bg-slate-950 text-slate-100 checked:bg-blue-700 checked:text-white";
+
 type TicketStatus = RequestTicketStatus;
 type ViewValue = RequestTicketParams["view"];
 
@@ -457,9 +459,9 @@ export function RequestTicketsPage() {
               setPage(1);
             }}
           >
-            <option value="all">كل الحالات</option>
+            <option className={statusOptionClassName} value="all">كل الحالات</option>
             {requestTicketStatusOptions.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
+              <option className={statusOptionClassName} key={item.value} value={item.value}>{item.label}</option>
             ))}
           </Select>
 
@@ -708,7 +710,7 @@ function TicketStatusSelect({
       aria-label="حالة الطلب"
     >
       {requestTicketStatusOptions.map((item) => (
-        <option key={item.value} value={item.value}>
+        <option className={statusOptionClassName} key={item.value} value={item.value}>
           {item.label}
         </option>
       ))}
@@ -927,7 +929,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           <Field label="الحالة" required>
             <Select value={normalizeRequestTicketStatus(form.status)} onChange={(event) => setForm({ ...form, status: event.target.value as TicketStatus })}>
               {requestTicketStatusOptions.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
+                <option className={statusOptionClassName} key={item.value} value={item.value}>{item.label}</option>
               ))}
             </Select>
           </Field>
