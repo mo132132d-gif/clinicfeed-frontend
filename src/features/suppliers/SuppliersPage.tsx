@@ -277,49 +277,61 @@ export function SuppliersPage() {
           <EmptyState title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات موردين"} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] table-auto bg-slate-950 text-right text-sm">
+            <table className="w-full table-fixed bg-slate-950 text-right text-sm">
               <thead className="bg-[#050B18] text-slate-300">
                 <tr>
-                  <th className="w-[260px] px-3 py-4 font-black text-center">اسم المورد</th>
-                  <th className="w-[120px] px-3 py-4 font-black text-center">الحالة</th>
-                  <th className="w-[130px] px-3 py-4 font-black text-center">آخر تحديث</th>
-                  <th className="w-[100px] px-3 py-4 text-center font-black">التقييم</th>
-                  <th className="w-[260px] px-3 py-4 font-black text-center">التصنيفات</th>
+                  <th className="w-[30%] px-4 py-4 font-black text-right">اسم المورد</th>
+                  <th className="w-[14%] px-4 py-4 font-black text-center">المدينة</th>
+                  <th className="w-[14%] px-4 py-4 font-black text-center">الحالة</th>
+                  <th className="w-[14%] px-4 py-4 font-black text-center">آخر تحديث</th>
+                  <th className="w-[10%] px-4 py-4 font-black text-center">التقييم</th>
+                  <th className="w-[18%] px-4 py-4 font-black text-center">التصنيفات</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-800 bg-slate-950">
                 {rows.map((supplier) => (
-                  <tr key={supplier.id} onClick={() => { window.location.href = `/suppliers/${supplier.id}`; }} className="group cursor-pointer bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70">
-                    <td className="whitespace-nowrap px-3 py-4">
-                      <p className="font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</p>
+                  <tr
+                    key={supplier.id}
+                    onClick={() => { window.location.href = `/suppliers/${supplier.id}`; }}
+                    className="group cursor-pointer bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70"
+                  >
+                    <td className="px-4 py-4">
+                      <p className="truncate font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</p>
                       <p className="truncate text-xs text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
                     </td>
 
-                    <td className="whitespace-nowrap px-3 py-4">
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-slate-300">
+                      {supplier.city || "-"}
+                    </td>
+
+                    <td className="whitespace-nowrap px-4 py-4 text-center">
                       <StatusBadge status={supplier.status} />
                     </td>
 
-                    <td className="whitespace-nowrap px-3 py-4 text-slate-400">-</td>
-
-                    <td className="whitespace-nowrap px-3 py-4 text-slate-400">
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-slate-300">
                       {formatDate(supplier.updated_at || supplier.created_at)}
                     </td>
 
-                    <td className="whitespace-nowrap px-3 py-4 text-slate-400">-</td>
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-slate-300">
+                      {(() => {
+                        const rating = (supplier as Record<string, unknown>).rating || (supplier as Record<string, unknown>).score;
+                        return rating ? String(rating) : "-";
+                      })()}
+                    </td>
 
-                    <td className="whitespace-nowrap px-3 py-4">
-                      <div className="flex flex-nowrap gap-2">
-                        {parseCategories(supplier.category).length === 0 ? (
-                          <span className="text-slate-500">-</span>
-                        ) : (
-                          parseCategories(supplier.category).map((item) => (
-                            <span key={item} className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-200">
-                              {item}
+                    <td className="px-4 py-4 text-center text-slate-300">
+                      {parseCategories(supplier.category).length ? (
+                        <div className="flex flex-wrap justify-center gap-1">
+                          {parseCategories(supplier.category).slice(0, 2).map((category) => (
+                            <span key={category} className="rounded-full border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-200">
+                              {category}
                             </span>
-                          ))
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-600">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -369,6 +381,7 @@ function supplierRating(supplier: Supplier) {
 
   return values.rating ?? values.internal_rating ?? values.average_rating ?? "-";
 }
+
 
 
 
