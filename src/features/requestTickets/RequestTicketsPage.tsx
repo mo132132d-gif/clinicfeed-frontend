@@ -1,4 +1,4 @@
-﻿import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, Edit2, Eye, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import type { RequestTicket, RequestTicketsSummary, Supplier } from "../../types";
@@ -38,26 +38,26 @@ import {
 const pageSize = 25;
 
 const viewOptions = [
-  { value: "pending", label: "ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ط¹ظ„ظ‚ط©" },
-  { value: "completed", label: "ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ظ†ظپط°ط©" },
-  { value: "cancelled", label: "ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ظ„ط؛ظٹط©" },
-  { value: "all", label: "ط¬ظ…ظٹط¹ ط§ظ„طھط°ط§ظƒط±" },
+  { value: "pending", label: "الطلبات المعلقة" },
+  { value: "completed", label: "الطلبات المنفذة" },
+  { value: "cancelled", label: "الطلبات الملغية" },
+  { value: "all", label: "جميع التذاكر" },
 ] as const;
 
 const priorityOptions = [
-  { value: "low", label: "ظ…ظ†ط®ظپط¶ط©" },
-  { value: "medium", label: "ظ…طھظˆط³ط·ط©" },
-  { value: "high", label: "ط¹ط§ظ„ظٹط©" },
-  { value: "urgent", label: "ط¹ط§ط¬ظ„ط©" },
+  { value: "low", label: "منخفضة" },
+  { value: "medium", label: "متوسطة" },
+  { value: "high", label: "عالية" },
+  { value: "urgent", label: "عاجلة" },
 ];
 
 const sourceOptions = [
-  "ظˆط§طھط³ط§ط¨",
-  "ط§طھطµط§ظ„",
-  "ط¥ظٹظ…ظٹظ„",
-  "ط§ظ„ظ…ظˆظ‚ط¹",
-  "ط¹ظ…ظٹظ„ ظ…ط¨ط§ط´ط±",
-  "ط£ط®ط±ظ‰",
+  "واتساب",
+  "اتصال",
+  "إيميل",
+  "الموقع",
+  "عميل مباشر",
+  "أخرى",
 ];
 
 const statusOptionClassName = "bg-slate-950 text-slate-100 checked:bg-blue-700 checked:text-white";
@@ -78,11 +78,11 @@ function emptyForm(): Partial<RequestTicket> {
     customer_name: "",
     phone: "",
     email: "",
-    country: "ط§ظ„ط³ط¹ظˆط¯ظٹط©",
+    country: "السعودية",
     region: "",
     request_description: "",
     assigned_to: "",
-    status: "ط¬ط¯ظٹط¯",
+    status: "جديد",
     priority: "medium",
     source: "",
     internal_notes: "",
@@ -99,11 +99,11 @@ function ticketStatus(ticket: RequestTicket) {
 }
 
 function isCancelledTicket(ticket: RequestTicket) {
-  return ticketStatus(ticket) === "ظ…ظ„ط؛ظٹط©";
+  return ticketStatus(ticket) === "ملغية";
 }
 
 function isExecutedTicket(ticket: RequestTicket) {
-  return ticketStatus(ticket) === "ظ…ظ†ظپط°ط©";
+  return ticketStatus(ticket) === "منفذة";
 }
 
 function matchesView(ticket: RequestTicket, view?: ViewValue) {
@@ -251,9 +251,9 @@ export function RequestTicketsPage() {
       anchor.click();
       anchor.remove();
       window.URL.revokeObjectURL(url);
-      setMessage("طھظ… طھطµط¯ظٹط± ط§ظ„ط¨ظٹط§ظ†ط§طھ");
+      setMessage("تم تصدير البيانات");
     },
-    onError: (err) => setMessage(err instanceof Error ? err.message : "ظپط´ظ„ طھطµط¯ظٹط± ط§ظ„ط¨ظٹط§ظ†ط§طھ"),
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل تصدير البيانات"),
   });
 
   const tickets = ticketsQuery.data || [];
@@ -292,9 +292,9 @@ export function RequestTicketsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
       queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
-      setMessage("طھظ… ط­ط°ظپ ط§ظ„طھط°ظƒط±ط©");
+      setMessage("تم حذف التذكرة");
     },
-    onError: (err) => setMessage(err instanceof Error ? err.message : "ظپط´ظ„ ط­ط°ظپ ط§ظ„طھط°ظƒط±ط©"),
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل حذف التذكرة"),
   });
 
   const statusMutation = useMutation({
@@ -316,14 +316,14 @@ export function RequestTicketsPage() {
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
       queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardRequestTicketsSummary"] });
-      setMessage("طھظ… طھط­ط¯ظٹط« ط­ط§ظ„ط© ط§ظ„ط·ظ„ط¨");
+      setMessage("تم تحديث حالة الطلب");
     },
-    onError: (err) => setMessage(err instanceof Error ? err.message : "ظپط´ظ„ طھط­ط¯ظٹط« ط­ط§ظ„ط© ط§ظ„ط·ظ„ط¨"),
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل تحديث حالة الطلب"),
   });
 
   function changeTicketStatus(ticket: RequestTicket, status: RequestTicketStatus) {
     if (!canManage) {
-      setMessage("ظ„ظٹط³ ظ„ط¯ظٹظƒ طµظ„ط§ط­ظٹط© ظ„طھظ†ظپظٹط° ظ‡ط°ط§ ط§ظ„ط¥ط¬ط±ط§ط،");
+      setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
       return;
     }
 
@@ -334,11 +334,11 @@ export function RequestTicketsPage() {
 
   function confirmDelete(ticket: RequestTicket) {
     if (!canManage) {
-      setMessage("ظ„ظٹط³ ظ„ط¯ظٹظƒ طµظ„ط§ط­ظٹط© ظ„طھظ†ظپظٹط° ظ‡ط°ط§ ط§ظ„ط¥ط¬ط±ط§ط،");
+      setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
       return;
     }
 
-    if (window.confirm(`ظ‡ظ„ طھط±ظٹط¯ ط­ط°ظپ ط§ظ„طھط°ظƒط±ط© ${ticket.ticket_number}طں`)) {
+    if (window.confirm(`هل تريد حذف التذكرة ${ticket.ticket_number}؟`)) {
       deleteMutation.mutate(ticket.id);
     }
   }
@@ -363,9 +363,9 @@ export function RequestTicketsPage() {
       <Card className="p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h1 className="text-2xl font-black text-white">طھط°ط§ظƒط± ط§ظ„ط·ظ„ط¨ط§طھ</h1>
+            <h1 className="text-2xl font-black text-white">تذاكر الطلبات</h1>
             <p className="mt-1 text-sm text-slate-400">
-              ط¥ظ†ط´ط§ط، ظˆظ…طھط§ط¨ط¹ط© ط·ظ„ط¨ط§طھ ط§ظ„ط¹ظ…ظ„ط§ط، ط§ظ„ظٹط¯ظˆظٹط© ظ‚ط¨ظ„ ط§ظ„طھظ†ظپظٹط° ط£ظˆ ط§ظ„ط¥ظ„ط؛ط§ط،.
+              إنشاء ومتابعة طلبات العملاء اليدوية قبل التنفيذ أو الإلغاء.
             </p>
           </div>
 
@@ -378,18 +378,18 @@ export function RequestTicketsPage() {
               }}
             >
               <RefreshCw className="h-4 w-4" />
-              طھط­ط¯ظٹط«
+              تحديث
             </Button>
 
             <Button variant="secondary" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
               <Download className="h-4 w-4" />
-              {exportMutation.isPending ? "ط¬ط§ط±ظٹ ط§ظ„طھطµط¯ظٹط±..." : "طھطµط¯ظٹط± ط§ظ„ط¨ظٹط§ظ†ط§طھ"}
+              {exportMutation.isPending ? "جاري التصدير..." : "تصدير البيانات"}
             </Button>
 
             {canManage && (
               <Button onClick={() => setEditing(null)}>
                 <Plus className="h-4 w-4" />
-                طھط°ظƒط±ط© ط¬ط¯ظٹط¯ط©
+                تذكرة جديدة
               </Button>
             )}
           </div>
@@ -403,11 +403,11 @@ export function RequestTicketsPage() {
           onClick={() => setSummaryOpen((value) => !value)}
         >
           <div>
-            <h2 className="text-lg font-black text-white">ظ…ظ„ط®طµ طھط°ط§ظƒط± ط§ظ„ط·ظ„ط¨ط§طھ</h2>
-            <p className="mt-1 text-sm text-slate-400">ظ…ط¤ط´ط±ط§طھ ظ…ط§ظ„ظٹط© ظˆطھط´ط؛ظٹظ„ظٹط© ظ…ط¬ظ…ط¹ط© ظ…ظ† طھط°ط§ظƒط± ط§ظ„ط·ظ„ط¨ط§طھ.</p>
+            <h2 className="text-lg font-black text-white">ملخص تذاكر الطلبات</h2>
+            <p className="mt-1 text-sm text-slate-400">مؤشرات مالية وتشغيلية مجمعة من تذاكر الطلبات.</p>
           </div>
           <span className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-bold text-slate-100">
-            ط¹ط±ط¶ ظ…ظ„ط®طµ ط§ظ„ط·ظ„ط¨ط§طھ
+            عرض ملخص الطلبات
             <ChevronDown className={`h-4 w-4 transition ${summaryOpen ? "rotate-180" : ""}`} />
           </span>
         </button>
@@ -415,9 +415,9 @@ export function RequestTicketsPage() {
         {summaryOpen && (
           <div className="border-t border-slate-800 p-5">
             {summaryQuery.isLoading ? (
-              <LoadingState label="ط¬ط§ط±ظٹ طھط­ظ…ظٹظ„ ظ…ظ„ط®طµ طھط°ط§ظƒط± ط§ظ„ط·ظ„ط¨ط§طھ..." />
+              <LoadingState label="جاري تحميل ملخص تذاكر الطلبات..." />
             ) : summaryQuery.error ? (
-              <EmptyState title="ظپط´ظ„ طھط­ظ…ظٹظ„ ظ…ظ„ط®طµ طھط°ط§ظƒط± ط§ظ„ط·ظ„ط¨ط§طھ" />
+              <EmptyState title="فشل تحميل ملخص تذاكر الطلبات" />
             ) : (
               <SummaryGrid summary={summaryQuery.data} />
             )}
@@ -431,7 +431,7 @@ export function RequestTicketsPage() {
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <Input
               className="pr-9"
-              placeholder="ط¨ط­ط« ط¨ط±ظ‚ظ… ط§ظ„طھط°ظƒط±ط© ط£ظˆ ط§ظ„ط¹ظ…ظٹظ„ ط£ظˆ ط§ظ„ط¬ظˆط§ظ„"
+              placeholder="بحث برقم التذكرة أو العميل أو الجوال"
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
@@ -459,14 +459,14 @@ export function RequestTicketsPage() {
               setPage(1);
             }}
           >
-            <option className={statusOptionClassName} value="all">ظƒظ„ ط§ظ„ط­ط§ظ„ط§طھ</option>
+            <option className={statusOptionClassName} value="all">كل الحالات</option>
             {requestTicketStatusOptions.map((item) => (
               <option className={statusOptionClassName} key={item.value} value={item.value}>{item.label}</option>
             ))}
           </Select>
 
           <Input
-            placeholder="ط§ظ„ظ…ظˆط¸ظپ ط§ظ„ظ…ط³ط¤ظˆظ„"
+            placeholder="الموظف المسؤول"
             value={assignedTo}
             onChange={(event) => {
               setAssignedTo(event.target.value);
@@ -481,7 +481,7 @@ export function RequestTicketsPage() {
               setDateFrom(event.target.value);
               setPage(1);
             }}
-            title="ظ…ظ† طھط§ط±ظٹط®"
+            title="من تاريخ"
           />
 
           <Input
@@ -491,7 +491,7 @@ export function RequestTicketsPage() {
               setDateTo(event.target.value);
               setPage(1);
             }}
-            title="ط¥ظ„ظ‰ طھط§ط±ظٹط®"
+            title="إلى تاريخ"
           />
         </div>
       </Card>
@@ -502,7 +502,7 @@ export function RequestTicketsPage() {
             <Card key={ticket.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-500">ط±ظ‚ظ… ط§ظ„طھط°ظƒط±ط©</p>
+                  <p className="text-xs font-bold text-slate-500">رقم التذكرة</p>
                   <h2 className="mt-1 truncate text-base font-black text-white">{ticket.ticket_number}</h2>
                 </div>
                 <TicketStatusSelect
@@ -517,27 +517,27 @@ export function RequestTicketsPage() {
               <p className="mt-1 text-sm text-slate-400" dir="ltr">{ticket.phone || "-"}</p>
 
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <Info label="ط§ظ„ظ…ط³ط¤ظˆظ„" value={ticket.assigned_to} />
-                <Info label="ط§ظ„ظ…ظ†ط·ظ‚ط©" value={[ticket.country, ticket.region].filter(Boolean).join(" / ")} />
-                <Info label="ط§ظ„ط¥ظ†ط´ط§ط،" value={formatDate(ticket.created_at)} />
-                <Info label="ط§ظ„ط¥ط؛ظ„ط§ظ‚" value={formatDate(ticket.closed_at)} />
+                <Info label="المسؤول" value={ticket.assigned_to} />
+                <Info label="المنطقة" value={[ticket.country, ticket.region].filter(Boolean).join(" / ")} />
+                <Info label="الإنشاء" value={formatDate(ticket.created_at)} />
+                <Info label="الإغلاق" value={formatDate(ticket.closed_at)} />
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button variant="secondary" onClick={() => setDetails(ticket)}>
                   <Eye className="h-4 w-4" />
-                  ط¹ط±ط¶
+                  عرض
                 </Button>
 
                 {canManage && (
                   <>
                     <Button variant="secondary" onClick={() => setEditing(ticket)}>
                       <Edit2 className="h-4 w-4" />
-                      طھط¹ط¯ظٹظ„
+                      تعديل
                     </Button>
                     <Button variant="danger" onClick={() => confirmDelete(ticket)}>
                       <Trash2 className="h-4 w-4" />
-                      ط­ط°ظپ
+                      حذف
                     </Button>
                   </>
                 )}
@@ -549,25 +549,25 @@ export function RequestTicketsPage() {
 
       <Card className={hasRows ? "hidden overflow-hidden md:block" : "overflow-hidden"}>
         {ticketsQuery.isLoading ? (
-          <LoadingState label="ط¬ط§ط±ظٹ طھط­ظ…ظٹظ„ طھط°ط§ظƒط± ط§ظ„ط·ظ„ط¨ط§طھ..." />
+          <LoadingState label="جاري تحميل تذاكر الطلبات..." />
         ) : ticketsQuery.error ? (
-          <EmptyState title="ظپط´ظ„ طھط­ظ…ظٹظ„ طھط°ط§ظƒط± ط§ظ„ط·ظ„ط¨ط§طھ" subtitle="طھط£ظƒط¯ ظ…ظ† طھط´ط؛ظٹظ„ ط§ظ„ط¨ط§ظƒظ†ط¯ ظˆظˆط¬ظˆط¯ ظ…ط³ط§ط± request-tickets." />
+          <EmptyState title="فشل تحميل تذاكر الطلبات" subtitle="تأكد من تشغيل الباكند ووجود مسار request-tickets." />
         ) : rows.length === 0 ? (
-          <EmptyState title={tickets.length ? "ظ„ط§ طھظˆط¬ط¯ ظ†طھط§ط¦ط¬ ظ…ط·ط§ط¨ظ‚ط©" : "ظ„ط§ طھظˆط¬ط¯ طھط°ط§ظƒط± ط·ظ„ط¨ط§طھ"} />
+          <EmptyState title={tickets.length ? "لا توجد نتائج مطابقة" : "لا توجد تذاكر طلبات"} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] table-auto bg-slate-950 text-right text-sm">
               <thead className="bg-[#050B18] text-slate-300">
                 <tr>
-                  <th className="min-w-[170px] px-5 py-4 font-black text-center">ط±ظ‚ظ… ط§ظ„طھط°ظƒط±ط©</th>
-                  <th className="min-w-[200px] px-5 py-4 font-black text-center">ط§ظ„ط¹ظ…ظٹظ„</th>
-                  <th className="min-w-[140px] px-5 py-4 font-black text-center">ط§ظ„ط¬ظˆط§ظ„</th>
-                  <th className="min-w-[150px] px-5 py-4 font-black text-center">ط§ظ„ط­ط§ظ„ط©</th>
-                  <th className="min-w-[160px] px-5 py-4 font-black text-center">ط§ظ„ظ…ط³ط¤ظˆظ„</th>
-                  <th className="min-w-[180px] px-5 py-4 font-black text-center">ط§ظ„ظ…ظ†ط·ظ‚ط©</th>
-                  <th className="min-w-[140px] px-5 py-4 font-black text-center">ط§ظ„ط¥ظ†ط´ط§ط،</th>
-                  <th className="min-w-[140px] px-5 py-4 font-black text-center">ط§ظ„ط¥ط؛ظ„ط§ظ‚</th>
-                  <th className="min-w-[180px] px-5 py-4 font-black text-center">ط§ظ„ط¥ط¬ط±ط§ط،ط§طھ</th>
+                  <th className="min-w-[170px] px-5 py-4 font-black text-center">رقم التذكرة</th>
+                  <th className="min-w-[200px] px-5 py-4 font-black text-center">العميل</th>
+                  <th className="min-w-[140px] px-5 py-4 font-black text-center">الجوال</th>
+                  <th className="min-w-[150px] px-5 py-4 font-black text-center">الحالة</th>
+                  <th className="min-w-[160px] px-5 py-4 font-black text-center">المسؤول</th>
+                  <th className="min-w-[180px] px-5 py-4 font-black text-center">المنطقة</th>
+                  <th className="min-w-[140px] px-5 py-4 font-black text-center">الإنشاء</th>
+                  <th className="min-w-[140px] px-5 py-4 font-black text-center">الإغلاق</th>
+                  <th className="min-w-[180px] px-5 py-4 font-black text-center">الإجراءات</th>
                 </tr>
               </thead>
 
@@ -597,7 +597,7 @@ export function RequestTicketsPage() {
                         <button
                           className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-100 hover:bg-slate-700"
                           onClick={() => setDetails(ticket)}
-                          title="ط¹ط±ط¶ ط§ظ„طھظپط§طµظٹظ„"
+                          title="عرض التفاصيل"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -607,7 +607,7 @@ export function RequestTicketsPage() {
                             <button
                               className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-blue-200 hover:bg-slate-700"
                               onClick={() => setEditing(ticket)}
-                              title="طھط¹ط¯ظٹظ„"
+                              title="تعديل"
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
@@ -615,7 +615,7 @@ export function RequestTicketsPage() {
                             <button
                               className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
                               onClick={() => confirmDelete(ticket)}
-                              title="ط­ط°ظپ"
+                              title="حذف"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -631,14 +631,14 @@ export function RequestTicketsPage() {
         )}
 
         <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4 text-sm text-slate-400">
-          <span>ط¹ط±ط¶ {rows.length} ظ…ظ† {filtered.length}</span>
+          <span>عرض {rows.length} من {filtered.length}</span>
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
-              ط§ظ„ط³ط§ط¨ظ‚
+              السابق
             </Button>
             <span>{page} / {totalPages}</span>
             <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
-              ط§ظ„طھط§ظ„ظٹ
+              التالي
             </Button>
           </div>
         </div>
@@ -649,17 +649,17 @@ export function RequestTicketsPage() {
 
 function SummaryGrid({ summary }: { summary?: RequestTicketsSummary }) {
   const items = [
-    { label: "ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط·ظ„ط¨ط§طھ", value: formatNumber(summaryValue(summary, ["total_requests", "total_tickets", "total"])) },
-    { label: "ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ظ†ظپط°ط©", value: formatNumber(summaryValue(summary, ["executed_requests", "completed_requests", "completed"])) },
-    { label: "ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ظ„ط؛ط§ط©", value: formatNumber(summaryValue(summary, ["cancelled_requests", "cancelled"])) },
-    { label: "ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ط¹ظ„ظ‚ط©", value: formatNumber(summaryValue(summary, ["pending_requests", "pending"])) },
-    { label: "ظ…ط¬ظ…ظˆط¹ ظ…ط¨ط§ظ„ط؛ ط§ظ„ط·ظ„ط¨ط§طھ", value: formatCurrency(summaryValue(summary, ["order_amount_sum", "total_order_amount"])) },
-    { label: "ظ…ط¬ظ…ظˆط¹ ط§ظ„ط¶ط±ظٹط¨ط©", value: formatCurrency(summaryValue(summary, ["vat_amount_sum", "total_vat_amount"])) },
-    { label: "ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ…ط¨ط§ظ„ط؛", value: formatCurrency(summaryValue(summary, ["total_amount_sum", "grand_total_amount"])) },
-    { label: "ظ…طھظˆط³ط· ظ‚ظٹظ…ط© ط§ظ„ط·ظ„ط¨", value: formatCurrency(summaryValue(summary, ["average_order_value", "avg_order_value"])) },
-    { label: "ط£ط¹ظ„ظ‰ ظ‚ظٹظ…ط© ط·ظ„ط¨", value: formatCurrency(summaryValue(summary, ["max_order_value", "highest_order_value"])) },
-    { label: "ط¹ط¯ط¯ ط§ظ„ط·ظ„ط¨ط§طھ ط¨ط¯ظˆظ† ظ…ظˆط±ط¯ ظ…ط±طھط¨ط·", value: formatNumber(summaryValue(summary, ["tickets_without_supplier", "requests_without_supplier"])) },
-    { label: "ط¹ط¯ط¯ ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„طھظٹ ظ„ط¯ظٹظ‡ط§ ظ…ظˆط±ط¯ظٹظ† ظ…ط±طھط¨ط·ظٹظ†", value: formatNumber(summaryValue(summary, ["tickets_with_suppliers", "requests_with_suppliers"])) },
+    { label: "إجمالي الطلبات", value: formatNumber(summaryValue(summary, ["total_requests", "total_tickets", "total"])) },
+    { label: "الطلبات المنفذة", value: formatNumber(summaryValue(summary, ["executed_requests", "completed_requests", "completed"])) },
+    { label: "الطلبات الملغاة", value: formatNumber(summaryValue(summary, ["cancelled_requests", "cancelled"])) },
+    { label: "الطلبات المعلقة", value: formatNumber(summaryValue(summary, ["pending_requests", "pending"])) },
+    { label: "مجموع مبالغ الطلبات", value: formatCurrency(summaryValue(summary, ["order_amount_sum", "total_order_amount"])) },
+    { label: "مجموع الضريبة", value: formatCurrency(summaryValue(summary, ["vat_amount_sum", "total_vat_amount"])) },
+    { label: "إجمالي المبالغ", value: formatCurrency(summaryValue(summary, ["total_amount_sum", "grand_total_amount"])) },
+    { label: "متوسط قيمة الطلب", value: formatCurrency(summaryValue(summary, ["average_order_value", "avg_order_value"])) },
+    { label: "أعلى قيمة طلب", value: formatCurrency(summaryValue(summary, ["max_order_value", "highest_order_value"])) },
+    { label: "عدد الطلبات بدون مورد مرتبط", value: formatNumber(summaryValue(summary, ["tickets_without_supplier", "requests_without_supplier"])) },
+    { label: "عدد الطلبات التي لديها موردين مرتبطين", value: formatNumber(summaryValue(summary, ["tickets_with_suppliers", "requests_with_suppliers"])) },
   ];
 
   return (
@@ -707,7 +707,7 @@ function TicketStatusSelect({
       onClick={(event) => event.stopPropagation()}
       onChange={(event) => onChange(ticket, event.target.value as RequestTicketStatus)}
       className={`h-9 rounded-full border px-3 py-1 text-xs font-black outline-none transition disabled:cursor-not-allowed disabled:opacity-60 ${requestTicketStatusBadgeClass(status)}`}
-      aria-label="ط­ط§ظ„ط© ط§ظ„ط·ظ„ط¨"
+      aria-label="حالة الطلب"
     >
       {requestTicketStatusOptions.map((item) => (
         <option className={statusOptionClassName} key={item.value} value={item.value}>
@@ -730,40 +730,40 @@ function RequestTicketDetailsModal({
   const linked = linkedSuppliers(ticket, suppliers);
 
   return (
-    <Modal title="طھظپط§طµظٹظ„ طھط°ظƒط±ط© ط§ظ„ط·ظ„ط¨" onClose={onClose}>
+    <Modal title="تفاصيل تذكرة الطلب" onClose={onClose}>
       <div className="space-y-5">
         <div className="grid gap-4 md:grid-cols-3">
-          <Info label="ط±ظ‚ظ… ط§ظ„طھط°ظƒط±ط©" value={ticket.ticket_number} />
-          <Info label="ط§ط³ظ… ط§ظ„ط¹ظ…ظٹظ„" value={ticket.customer_name} />
+          <Info label="رقم التذكرة" value={ticket.ticket_number} />
+          <Info label="اسم العميل" value={ticket.customer_name} />
           <div>
-            <p className="text-xs font-bold text-slate-500">ط§ظ„ط­ط§ظ„ط©</p>
+            <p className="text-xs font-bold text-slate-500">الحالة</p>
             <div className="mt-1"><StatusBadge status={ticket.status} /></div>
           </div>
-          <Info label="ط±ظ‚ظ… ط§ظ„ط¬ظˆط§ظ„" value={ticket.phone} />
-          <Info label="ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ" value={ticket.email} />
-          <Info label="ط§ظ„ظ…ظ†ط·ظ‚ط©" value={[ticket.country, ticket.region].filter(Boolean).join(" / ")} />
-          <Info label="ظ…ط¨ظ„ط؛ ط§ظ„ط·ظ„ط¨" value={formatCurrency(ticket.order_amount)} />
-          <Info label="ط§ظ„ط¶ط±ظٹط¨ط©" value={formatCurrency(ticket.vat_amount)} />
-          <Info label="ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ" value={formatCurrency(ticket.total_amount ?? (numberValue(ticket.order_amount) + numberValue(ticket.vat_amount)))} />
+          <Info label="رقم الجوال" value={ticket.phone} />
+          <Info label="البريد الإلكتروني" value={ticket.email} />
+          <Info label="المنطقة" value={[ticket.country, ticket.region].filter(Boolean).join(" / ")} />
+          <Info label="مبلغ الطلب" value={formatCurrency(ticket.order_amount)} />
+          <Info label="الضريبة" value={formatCurrency(ticket.vat_amount)} />
+          <Info label="الإجمالي" value={formatCurrency(ticket.total_amount ?? (numberValue(ticket.order_amount) + numberValue(ticket.vat_amount)))} />
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-          <p className="text-xs font-bold text-slate-500">ظˆطµظپ ط§ظ„ط·ظ„ط¨</p>
+          <p className="text-xs font-bold text-slate-500">وصف الطلب</p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-100">{ticket.request_description || "-"}</p>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-          <h3 className="font-black text-white">ط§ظ„ظ…ظˆط±ط¯ظٹظ† ط§ظ„ظ…ط±طھط¨ط·ظٹظ†</h3>
+          <h3 className="font-black text-white">الموردين المرتبطين</h3>
           {linked.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">ظ„ط§ ظٹظˆط¬ط¯ ظ…ظˆط±ط¯ظٹظ† ظ…ط±طھط¨ط·ظٹظ† ط¨ظ‡ط°ظ‡ ط§ظ„طھط°ظƒط±ط©</p>
+            <p className="mt-3 text-sm text-slate-400">لا يوجد موردين مرتبطين بهذه التذكرة</p>
           ) : (
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[620px] text-right text-sm">
                 <thead className="text-slate-400">
                   <tr>
-                    <th className="px-3 py-2 font-black">ط§ط³ظ… ط§ظ„ظ…ظˆط±ط¯</th>
-                    <th className="px-3 py-2 font-black">ط±ظ‚ظ… ط§ظ„ط¬ظˆط§ظ„</th>
-                    <th className="px-3 py-2 font-black">ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ</th>
+                    <th className="px-3 py-2 font-black">اسم المورد</th>
+                    <th className="px-3 py-2 font-black">رقم الجوال</th>
+                    <th className="px-3 py-2 font-black">البريد الإلكتروني</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
@@ -827,24 +827,22 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
       const normalizedStatus = normalizeRequestTicketStatus(form.status);
       const payload: Partial<RequestTicket> = {
         customer_name: form.customer_name?.trim() || "",
-        phone: form.phone?.trim() || "",
-        email: form.email?.trim() || "",
-        country: form.country?.trim() || "",
-        region: form.region?.trim() || "",
+        phone: form.phone?.trim() || null,
+        email: form.email?.trim() || null,
+        country: form.country?.trim() || null,
+        region: form.region?.trim() || null,
         request_description: form.request_description?.trim() || "",
-        assigned_to: form.assigned_to?.trim() || "",
+        assigned_to: form.assigned_to?.trim() || null,
         status: normalizedStatus,
         priority: form.priority || "medium",
-        source: form.source?.trim() || "",
-        internal_notes: form.internal_notes?.trim() || "",
-        cancellation_reason: normalizedStatus === "ملغية" ? form.cancellation_reason?.trim() || "" : "",
+        source: form.source?.trim() || null,
+        internal_notes: form.internal_notes?.trim() || null,
+        cancellation_reason: normalizedStatus === "ملغية" ? form.cancellation_reason?.trim() || null : null,
+        supplier_ids: selectedSupplierIds,
         order_amount: optionalNumber(form.order_amount),
         vat_amount: optionalNumber(form.vat_amount),
+        total_amount: totalAmount,
       };
-
-      if (!ticket) {
-        payload.supplier_ids = selectedSupplierIds;
-      }
 
       return ticket ? updateRequestTicket(ticket.id, payload) : createRequestTicket(payload);
     },
@@ -853,10 +851,10 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
       queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardRequestTicketsSummary"] });
-      setMessage(ticket ? "طھظ… طھط­ط¯ظٹط« ط§ظ„طھط°ظƒط±ط©" : "طھظ… ط¥ظ†ط´ط§ط، ط§ظ„طھط°ظƒط±ط©");
+      setMessage(ticket ? "تم تحديث التذكرة" : "تم إنشاء التذكرة");
       onClose();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "ظپط´ظ„ ط­ظپط¸ ط§ظ„طھط°ظƒط±ط©"),
+    onError: (err) => setError(err instanceof Error ? err.message : "فشل حفظ التذكرة"),
   });
 
   function setSupplier(id: string, selected: boolean) {
@@ -870,17 +868,17 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
     event.preventDefault();
 
     if (!form.customer_name?.trim()) {
-      setError("ط§ط³ظ… ط§ظ„ط¹ظ…ظٹظ„ ظ…ط·ظ„ظˆط¨");
+      setError("اسم العميل مطلوب");
       return;
     }
 
     if (!form.request_description?.trim()) {
-      setError("ظˆطµظپ ط§ظ„ط·ظ„ط¨ ظ…ط·ظ„ظˆط¨");
+      setError("وصف الطلب مطلوب");
       return;
     }
 
     if (!form.status) {
-      setError("ط­ط§ظ„ط© ط§ظ„ط·ظ„ط¨ ظ…ط·ظ„ظˆط¨ط©");
+      setError("حالة الطلب مطلوبة");
       return;
     }
 
@@ -888,7 +886,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
   }
 
   return (
-    <Modal title={ticket ? "طھط¹ط¯ظٹظ„ طھط°ظƒط±ط© ط·ظ„ط¨" : "ط¥ظ†ط´ط§ط، طھط°ظƒط±ط© ط·ظ„ط¨"} onClose={onClose}>
+    <Modal title={ticket ? "تعديل تذكرة طلب" : "إنشاء تذكرة طلب"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-5">
         {error && (
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
@@ -898,37 +896,37 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
 
         {ticket?.ticket_number && (
           <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-            <p className="text-xs text-slate-500">ط±ظ‚ظ… ط§ظ„طھط°ظƒط±ط©</p>
+            <p className="text-xs text-slate-500">رقم التذكرة</p>
             <p className="mt-1 text-lg font-black text-white">{ticket.ticket_number}</p>
           </div>
         )}
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="ط§ط³ظ… ط§ظ„ط¹ظ…ظٹظ„" required>
+          <Field label="اسم العميل" required>
             <Input value={form.customer_name || ""} onChange={(event) => setForm({ ...form, customer_name: event.target.value })} />
           </Field>
 
-          <Field label="ط±ظ‚ظ… ط§ظ„ط¬ظˆط§ظ„">
+          <Field label="رقم الجوال">
             <Input dir="ltr" value={form.phone || ""} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
           </Field>
 
-          <Field label="ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ">
+          <Field label="البريد الإلكتروني">
             <Input dir="ltr" type="email" value={form.email || ""} onChange={(event) => setForm({ ...form, email: event.target.value })} />
           </Field>
 
-          <Field label="ط§ظ„ط¯ظˆظ„ط©">
+          <Field label="الدولة">
             <Input value={form.country || ""} onChange={(event) => setForm({ ...form, country: event.target.value })} />
           </Field>
 
-          <Field label="ط§ظ„ظ…ظ†ط·ظ‚ط© / ط§ظ„ظ…ط¯ظٹظ†ط©">
+          <Field label="المنطقة / المدينة">
             <Input value={form.region || ""} onChange={(event) => setForm({ ...form, region: event.target.value })} />
           </Field>
 
-          <Field label="ط§ظ„ظ…ظˆط¸ظپ ط§ظ„ظ…ط³ط¤ظˆظ„">
+          <Field label="الموظف المسؤول">
             <Input value={form.assigned_to || ""} onChange={(event) => setForm({ ...form, assigned_to: event.target.value })} />
           </Field>
 
-          <Field label="ط§ظ„ط­ط§ظ„ط©" required>
+          <Field label="الحالة" required>
             <Select value={normalizeRequestTicketStatus(form.status)} onChange={(event) => setForm({ ...form, status: event.target.value as TicketStatus })}>
               {requestTicketStatusOptions.map((item) => (
                 <option className={statusOptionClassName} key={item.value} value={item.value}>{item.label}</option>
@@ -936,7 +934,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
             </Select>
           </Field>
 
-          <Field label="ط§ظ„ط£ظˆظ„ظˆظٹط©">
+          <Field label="الأولوية">
             <Select value={form.priority || "medium"} onChange={(event) => setForm({ ...form, priority: event.target.value })}>
               {priorityOptions.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
@@ -944,9 +942,9 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
             </Select>
           </Field>
 
-          <Field label="ظ…طµط¯ط± ط§ظ„ط·ظ„ط¨">
+          <Field label="مصدر الطلب">
             <Select value={form.source || ""} onChange={(event) => setForm({ ...form, source: event.target.value })}>
-              <option value="">ط؛ظٹط± ظ…ط­ط¯ط¯</option>
+              <option value="">غير محدد</option>
               {sourceOptions.map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
@@ -955,7 +953,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Field label="ظ…ط¨ظ„ط؛ ط§ظ„ط·ظ„ط¨">
+          <Field label="مبلغ الطلب">
             <Input
               dir="ltr"
               type="number"
@@ -966,7 +964,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
             />
           </Field>
 
-          <Field label="ط§ظ„ط¶ط±ظٹط¨ط©">
+          <Field label="الضريبة">
             <Input
               dir="ltr"
               type="number"
@@ -977,7 +975,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
             />
           </Field>
 
-          <Field label="ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ">
+          <Field label="الإجمالي">
             <Input dir="ltr" readOnly value={totalAmount.toFixed(2)} className="bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300" />
           </Field>
         </div>
@@ -992,26 +990,26 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           setSupplier={setSupplier}
         />
 
-        <Field label="ظˆطµظپ ط§ظ„ط·ظ„ط¨" required>
+        <Field label="وصف الطلب" required>
           <Textarea value={form.request_description || ""} onChange={(event) => setForm({ ...form, request_description: event.target.value })} />
         </Field>
 
-        <Field label="ظ…ظ„ط§ط­ط¸ط§طھ ط¯ط§ط®ظ„ظٹط©">
+        <Field label="ملاحظات داخلية">
           <Textarea value={form.internal_notes || ""} onChange={(event) => setForm({ ...form, internal_notes: event.target.value })} />
         </Field>
 
-        {normalizeRequestTicketStatus(form.status) === "ظ…ظ„ط؛ظٹط©" && (
-          <Field label="ط³ط¨ط¨ ط§ظ„ط¥ظ„ط؛ط§ط،">
+        {normalizeRequestTicketStatus(form.status) === "ملغية" && (
+          <Field label="سبب الإلغاء">
             <Textarea value={form.cancellation_reason || ""} onChange={(event) => setForm({ ...form, cancellation_reason: event.target.value })} />
           </Field>
         )}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
-            ط¥ظ„ط؛ط§ط،
+            إلغاء
           </Button>
           <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "ط¬ط§ط±ظٹ ط§ظ„ط­ظپط¸..." : "ط­ظپط¸"}
+            {mutation.isPending ? "جاري الحفظ..." : "حفظ"}
           </Button>
         </div>
       </form>
@@ -1038,11 +1036,11 @@ function SupplierMultiSelect({
 }) {
   return (
     <div>
-      <Field label="ط§ظ„ظ…ظˆط±ط¯ظٹظ† ط§ظ„ظ…ط±طھط¨ط·ظٹظ†">
+      <Field label="الموردين المرتبطين">
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="ط§ط¨ط­ط« ط¨ط§ط³ظ… ط§ظ„ظ…ظˆط±ط¯ ط£ظˆ ط±ظ‚ظ… ط§ظ„ط¬ظˆط§ظ„ ط£ظˆ ط§ظ„ط¨ط±ظٹط¯"
+          placeholder="ابحث باسم المورد أو رقم الجوال أو البريد"
         />
       </Field>
 
@@ -1064,9 +1062,9 @@ function SupplierMultiSelect({
 
       <div className="mt-3 max-h-60 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950">
         {loading ? (
-          <div className="p-4 text-sm text-slate-400">ط¬ط§ط±ظٹ طھط­ظ…ظٹظ„ ط§ظ„ظ…ظˆط±ط¯ظٹظ†...</div>
+          <div className="p-4 text-sm text-slate-400">جاري تحميل الموردين...</div>
         ) : options.length === 0 ? (
-          <div className="p-4 text-sm text-slate-400">ظ„ط§ طھظˆط¬ط¯ ظ†طھط§ط¦ط¬ ظ…ط·ط§ط¨ظ‚ط©</div>
+          <div className="p-4 text-sm text-slate-400">لا توجد نتائج مطابقة</div>
         ) : (
           options.map((supplier) => {
             const id = String(supplier.id);
@@ -1094,4 +1092,3 @@ function SupplierMultiSelect({
     </div>
   );
 }
-
