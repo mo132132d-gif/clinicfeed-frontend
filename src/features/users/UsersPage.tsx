@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+﻿import { FormEvent, useState } from "react";
 import { Navigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Edit2, KeyRound, Plus, Search } from "lucide-react";
@@ -162,3 +162,4 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
 
   return <Modal title={`إعادة تعيين كلمة المرور - ${user.name}`} onClose={onClose}><form onSubmit={submit} className="space-y-4">{error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-rose-200">{error}</div>}<Field label="كلمة المرور المؤقتة" required><Input dir="ltr" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field><Field label="تأكيد كلمة المرور" required><Input dir="ltr" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></Field><div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>إلغاء</Button><Button type="submit" disabled={mutation.isPending}>حفظ كلمة المرور</Button></div></form></Modal>;
 }
+
