@@ -139,10 +139,14 @@ export interface RequestTicket {
   request_description?: string | null;
   assigned_to?: string | null;
   status:
-    | "pending"
-    | "in_progress"
-    | "completed"
-    | "cancelled";
+    | "جديد"
+    | "قيد المراجعة"
+    | "بأنتظار العميل"
+    | "بأنتظار المورد"
+    | "تم ارسال عرض سعر"
+    | "قيد التنفيذ"
+    | "منفذة"
+    | "ملغية";
   priority?: string | null;
   source?: string | null;
   internal_notes?: string | null;

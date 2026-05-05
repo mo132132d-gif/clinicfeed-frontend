@@ -80,7 +80,7 @@ function emptyForm(): Partial<RequestTicket> {
     region: "",
     request_description: "",
     assigned_to: "",
-    status: "pending",
+    status: "جديد",
     priority: "medium",
     source: "",
     internal_notes: "",
@@ -97,11 +97,11 @@ function ticketStatus(ticket: RequestTicket) {
 }
 
 function isCancelledTicket(ticket: RequestTicket) {
-  return ticketStatus(ticket) === "cancelled";
+  return ticketStatus(ticket) === "ملغية";
 }
 
 function isExecutedTicket(ticket: RequestTicket) {
-  return ticketStatus(ticket) === "completed";
+  return ticketStatus(ticket) === "منفذة";
 }
 
 function matchesView(ticket: RequestTicket, view?: ViewValue) {
@@ -298,10 +298,11 @@ export function RequestTicketsPage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: RequestTicketStatus }) => updateRequestTicket(id, { status }),
     onSuccess: (updatedTicket, variables) => {
+      const savedTicket = updatedTicket || ({ id: variables.id, status: variables.status } as RequestTicket);
       const nextTicket = updateTicketInRequestTicketQueries(queryClient, {
-        ...updatedTicket,
-        id: updatedTicket.id || variables.id,
-        status: updatedTicket.status || variables.status,
+        ...savedTicket,
+        id: savedTicket.id || variables.id,
+        status: savedTicket.status || variables.status,
       });
 
       setDetails((current) => (
@@ -834,7 +835,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
         priority: form.priority || "medium",
         source: form.source?.trim() || null,
         internal_notes: form.internal_notes?.trim() || null,
-        cancellation_reason: normalizedStatus === "cancelled" ? form.cancellation_reason?.trim() || null : null,
+        cancellation_reason: normalizedStatus === "ملغية" ? form.cancellation_reason?.trim() || null : null,
         supplier_ids: selectedSupplierIds,
         order_amount: optionalNumber(form.order_amount),
         vat_amount: optionalNumber(form.vat_amount),
@@ -995,7 +996,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           <Textarea value={form.internal_notes || ""} onChange={(event) => setForm({ ...form, internal_notes: event.target.value })} />
         </Field>
 
-        {normalizeRequestTicketStatus(form.status) === "cancelled" && (
+        {normalizeRequestTicketStatus(form.status) === "ملغية" && (
           <Field label="سبب الإلغاء">
             <Textarea value={form.cancellation_reason || ""} onChange={(event) => setForm({ ...form, cancellation_reason: event.target.value })} />
           </Field>
