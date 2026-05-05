@@ -21,6 +21,12 @@ export interface Supplier {
   id: string;
   name_ar: string;
   name_en?: string | null;
+  name?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
   cr_number?: string | null;
   vat_number?: string | null;
   city?: string | null;
@@ -145,8 +151,41 @@ export interface RequestTicket {
   source?: string | null;
   internal_notes?: string | null;
   cancellation_reason?: string | null;
+  supplier_ids?: string[];
+  suppliers?: Supplier[];
+  linked_suppliers?: Supplier[];
+  order_amount?: number | string | null;
+  vat_amount?: number | string | null;
+  total_amount?: number | string | null;
   qr_code?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   closed_at?: string | null;
+}
+
+export interface RequestTicketsSummary {
+  total_requests?: number | string | null;
+  total_tickets?: number | string | null;
+  total?: number | string | null;
+  executed_requests?: number | string | null;
+  completed_requests?: number | string | null;
+  completed?: number | string | null;
+  cancelled_requests?: number | string | null;
+  cancelled?: number | string | null;
+  pending_requests?: number | string | null;
+  pending?: number | string | null;
+  order_amount_sum?: number | string | null;
+  total_order_amount?: number | string | null;
+  vat_amount_sum?: number | string | null;
+  total_vat_amount?: number | string | null;
+  total_amount_sum?: number | string | null;
+  grand_total_amount?: number | string | null;
+  average_order_value?: number | string | null;
+  avg_order_value?: number | string | null;
+  max_order_value?: number | string | null;
+  highest_order_value?: number | string | null;
+  tickets_without_supplier?: number | string | null;
+  requests_without_supplier?: number | string | null;
+  tickets_with_suppliers?: number | string | null;
+  requests_with_suppliers?: number | string | null;
 }

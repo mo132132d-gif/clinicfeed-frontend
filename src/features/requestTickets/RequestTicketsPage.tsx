@@ -1,14 +1,17 @@
-﻿import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Edit2, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
-import type { RequestTicket } from "../../types";
+import { ChevronDown, Download, Edit2, Eye, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import type { RequestTicket, RequestTicketsSummary, Supplier } from "../../types";
 import { useAuth } from "../auth/AuthProvider";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
-import { formatDate } from "../../lib/format";
+import { formatCurrency, formatDate, formatNumber } from "../../lib/format";
 import { canManageSuppliers } from "../../lib/permissions";
+import { listSuppliers } from "../../services/supplierService";
 import {
   createRequestTicket,
   deleteRequestTicket,
+  exportRequestTickets,
+  getRequestTicketsSummary,
   listRequestTickets,
   updateRequestTicket,
   type RequestTicketParams,
@@ -39,7 +42,7 @@ const statusOptions = [
 ] as const;
 
 const viewOptions = [
-  { value: "active", label: "التذاكر النشطة" },
+  { value: "pending", label: "الطلبات المعلقة" },
   { value: "completed", label: "الطلبات المنفذة" },
   { value: "cancelled", label: "الطلبات الملغية" },
   { value: "all", label: "جميع التذاكر" },
@@ -64,10 +67,6 @@ const sourceOptions = [
 type TicketStatus = RequestTicket["status"];
 type ViewValue = RequestTicketParams["view"];
 
-function statusLabel(status?: string | null) {
-  return statusOptions.find((item) => item.value === status)?.label || status || "-";
-}
-
 function StatusBadge({ status }: { status?: string | null }) {
   const item = statusOptions.find((option) => option.value === status);
 
@@ -76,11 +75,6 @@ function StatusBadge({ status }: { status?: string | null }) {
       {item?.label || status || "-"}
     </span>
   );
-}
-
-function shortText(value?: string | null, limit = 90) {
-  if (!value) return "-";
-  return value.length > limit ? `${value.slice(0, limit)}...` : value;
 }
 
 function emptyForm(): Partial<RequestTicket> {
@@ -97,19 +91,111 @@ function emptyForm(): Partial<RequestTicket> {
     source: "",
     internal_notes: "",
     cancellation_reason: "",
+    supplier_ids: [],
+    order_amount: "",
+    vat_amount: "",
+    total_amount: 0,
   };
+}
+
+function ticketStatus(ticket: RequestTicket) {
+  return String(ticket.status || "").toLowerCase();
+}
+
+function isCancelledTicket(ticket: RequestTicket) {
+  return ticketStatus(ticket) === "cancelled";
+}
+
+function isExecutedTicket(ticket: RequestTicket) {
+  return ["completed", "executed"].includes(ticketStatus(ticket));
+}
+
+function matchesView(ticket: RequestTicket, view?: ViewValue) {
+  if (view === "cancelled") return isCancelledTicket(ticket);
+  if (view === "completed") return isExecutedTicket(ticket);
+  if (view === "pending" || view === "active") return !isCancelledTicket(ticket) && !isExecutedTicket(ticket);
+  return true;
+}
+
+function matchesDateRange(ticket: RequestTicket, dateFrom?: string, dateTo?: string) {
+  const date = formatDate(ticket.created_at);
+  if (date === "-") return !dateFrom && !dateTo;
+  if (dateFrom && date < dateFrom) return false;
+  if (dateTo && date > dateTo) return false;
+  return true;
+}
+
+function numberValue(value?: number | string | null) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function optionalNumber(value?: number | string | null) {
+  if (value === "" || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function summaryValue(summary: RequestTicketsSummary | undefined, keys: Array<keyof RequestTicketsSummary>) {
+  for (const key of keys) {
+    const value = summary?.[key];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return 0;
+}
+
+function supplierName(supplier: Supplier) {
+  return supplier.name_ar || supplier.name_en || supplier.name || "-";
+}
+
+function supplierPhone(supplier: Supplier) {
+  return supplier.phone || supplier.mobile || supplier.contact_phone || "-";
+}
+
+function supplierEmail(supplier: Supplier) {
+  return supplier.email || supplier.contact_email || "-";
+}
+
+function extractSupplierIds(ticket?: RequestTicket | null) {
+  if (!ticket) return [];
+  if (Array.isArray(ticket.supplier_ids)) return ticket.supplier_ids.map(String);
+
+  const linked = Array.isArray(ticket.suppliers)
+    ? ticket.suppliers
+    : Array.isArray(ticket.linked_suppliers)
+      ? ticket.linked_suppliers
+      : [];
+
+  return linked.map((supplier) => String(supplier.id)).filter(Boolean);
+}
+
+function linkedSuppliers(ticket: RequestTicket, suppliers: Supplier[]) {
+  const direct = Array.isArray(ticket.suppliers)
+    ? ticket.suppliers
+    : Array.isArray(ticket.linked_suppliers)
+      ? ticket.linked_suppliers
+      : [];
+
+  if (direct.length > 0) return direct;
+
+  const ids = new Set(extractSupplierIds(ticket));
+  return suppliers.filter((supplier) => ids.has(String(supplier.id)));
 }
 
 export function RequestTicketsPage() {
   const { user, setMessage } = useAuth();
   const queryClient = useQueryClient();
 
-  const [view, setView] = useState<ViewValue>("active");
+  const [view, setView] = useState<ViewValue>("pending");
   const [status, setStatus] = useState("all");
   const [assignedTo, setAssignedTo] = useState("");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<RequestTicket | null | undefined>(undefined);
+  const [details, setDetails] = useState<RequestTicket | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search, 250);
   const canManage = canManageSuppliers(user?.role);
@@ -119,12 +205,43 @@ export function RequestTicketsPage() {
     status,
     assigned_to: assignedTo.trim() || undefined,
     search: debouncedSearch.trim() || undefined,
-  }), [view, status, assignedTo, debouncedSearch]);
+    date_from: dateFrom || undefined,
+    date_to: dateTo || undefined,
+  }), [view, status, assignedTo, debouncedSearch, dateFrom, dateTo]);
 
   const ticketsQuery = useQuery({
     queryKey: ["requestTickets", params],
     queryFn: () => listRequestTickets(params),
     staleTime: 60_000,
+  });
+
+  const summaryQuery = useQuery({
+    queryKey: ["requestTicketsSummary"],
+    queryFn: getRequestTicketsSummary,
+    enabled: summaryOpen,
+    staleTime: 60_000,
+  });
+
+  const suppliersQuery = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: listSuppliers,
+    staleTime: 60_000,
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: () => exportRequestTickets(params),
+    onSuccess: ({ blob, filename }) => {
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      setMessage("تم تصدير البيانات");
+    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل تصدير البيانات"),
   });
 
   const tickets = ticketsQuery.data || [];
@@ -145,12 +262,14 @@ export function RequestTicketsPage() {
       ].filter(Boolean).join(" ").toLowerCase();
 
       return (
+        matchesView(ticket, view) &&
+        matchesDateRange(ticket, dateFrom, dateTo) &&
         (!term || haystack.includes(term)) &&
-        (status === "all" || ticket.status === status) &&
+        (status === "all" || ticketStatus(ticket) === status) &&
         (!assignedTo.trim() || String(ticket.assigned_to || "").toLowerCase().includes(assignedTo.trim().toLowerCase()))
       );
     });
-  }, [tickets, debouncedSearch, status, assignedTo]);
+  }, [tickets, debouncedSearch, status, assignedTo, view, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -160,6 +279,7 @@ export function RequestTicketsPage() {
     mutationFn: deleteRequestTicket,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
+      queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
       setMessage("تم حذف التذكرة");
     },
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشل حذف التذكرة"),
@@ -185,6 +305,14 @@ export function RequestTicketsPage() {
         />
       )}
 
+      {details && (
+        <RequestTicketDetailsModal
+          ticket={details}
+          suppliers={suppliersQuery.data || []}
+          onClose={() => setDetails(null)}
+        />
+      )}
+
       <Card className="p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -195,9 +323,20 @@ export function RequestTicketsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ["requestTickets"] })}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
+                queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
+              }}
+            >
               <RefreshCw className="h-4 w-4" />
               تحديث
+            </Button>
+
+            <Button variant="secondary" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
+              <Download className="h-4 w-4" />
+              {exportMutation.isPending ? "جاري التصدير..." : "تصدير البيانات"}
             </Button>
 
             {canManage && (
@@ -210,8 +349,37 @@ export function RequestTicketsPage() {
         </div>
       </Card>
 
+      <Card className="overflow-hidden">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 p-5 text-right"
+          onClick={() => setSummaryOpen((value) => !value)}
+        >
+          <div>
+            <h2 className="text-lg font-black text-white">ملخص تذاكر الطلبات</h2>
+            <p className="mt-1 text-sm text-slate-400">مؤشرات مالية وتشغيلية مجمعة من تذاكر الطلبات.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-bold text-slate-100">
+            عرض ملخص الطلبات
+            <ChevronDown className={`h-4 w-4 transition ${summaryOpen ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+
+        {summaryOpen && (
+          <div className="border-t border-slate-800 p-5">
+            {summaryQuery.isLoading ? (
+              <LoadingState label="جاري تحميل ملخص تذاكر الطلبات..." />
+            ) : summaryQuery.error ? (
+              <EmptyState title="فشل تحميل ملخص تذاكر الطلبات" />
+            ) : (
+              <SummaryGrid summary={summaryQuery.data} />
+            )}
+          </div>
+        )}
+      </Card>
+
       <Card className="p-5">
-        <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
+        <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr_1fr_0.8fr_0.8fr]">
           <div className="relative">
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <Input
@@ -258,6 +426,26 @@ export function RequestTicketsPage() {
               setPage(1);
             }}
           />
+
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => {
+              setDateFrom(event.target.value);
+              setPage(1);
+            }}
+            title="من تاريخ"
+          />
+
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(event) => {
+              setDateTo(event.target.value);
+              setPage(1);
+            }}
+            title="إلى تاريخ"
+          />
         </div>
       </Card>
 
@@ -275,7 +463,6 @@ export function RequestTicketsPage() {
 
               <p className="mt-3 font-black text-white">{ticket.customer_name}</p>
               <p className="mt-1 text-sm text-slate-400" dir="ltr">{ticket.phone || "-"}</p>
-              <p className="mt-3 text-sm text-slate-400">{shortText(ticket.request_description)}</p>
 
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <Info label="المسؤول" value={ticket.assigned_to} />
@@ -284,18 +471,25 @@ export function RequestTicketsPage() {
                 <Info label="الإغلاق" value={formatDate(ticket.closed_at)} />
               </div>
 
-              {canManage && (
-                <div className="mt-4 flex gap-2">
-                  <Button variant="secondary" onClick={() => setEditing(ticket)}>
-                    <Edit2 className="h-4 w-4" />
-                    تعديل
-                  </Button>
-                  <Button variant="danger" onClick={() => confirmDelete(ticket)}>
-                    <Trash2 className="h-4 w-4" />
-                    حذف
-                  </Button>
-                </div>
-              )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setDetails(ticket)}>
+                  <Eye className="h-4 w-4" />
+                  عرض
+                </Button>
+
+                {canManage && (
+                  <>
+                    <Button variant="secondary" onClick={() => setEditing(ticket)}>
+                      <Edit2 className="h-4 w-4" />
+                      تعديل
+                    </Button>
+                    <Button variant="danger" onClick={() => confirmDelete(ticket)}>
+                      <Trash2 className="h-4 w-4" />
+                      حذف
+                    </Button>
+                  </>
+                )}
+              </div>
             </Card>
           ))}
         </div>
@@ -310,7 +504,7 @@ export function RequestTicketsPage() {
           <EmptyState title={tickets.length ? "لا توجد نتائج مطابقة" : "لا توجد تذاكر طلبات"} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1300px] table-auto bg-slate-950 text-right text-sm">
+            <table className="w-full min-w-[1120px] table-auto bg-slate-950 text-right text-sm">
               <thead className="bg-[#050B18] text-slate-300">
                 <tr>
                   <th className="min-w-[170px] px-5 py-4 font-black text-center">رقم التذكرة</th>
@@ -319,10 +513,9 @@ export function RequestTicketsPage() {
                   <th className="min-w-[150px] px-5 py-4 font-black text-center">الحالة</th>
                   <th className="min-w-[160px] px-5 py-4 font-black text-center">المسؤول</th>
                   <th className="min-w-[180px] px-5 py-4 font-black text-center">المنطقة</th>
-                  <th className="min-w-[260px] px-5 py-4 font-black text-center">وصف الطلب</th>
                   <th className="min-w-[140px] px-5 py-4 font-black text-center">الإنشاء</th>
                   <th className="min-w-[140px] px-5 py-4 font-black text-center">الإغلاق</th>
-                  <th className="min-w-[160px] px-5 py-4 font-black text-center">الإجراءات</th>
+                  <th className="min-w-[180px] px-5 py-4 font-black text-center">الإجراءات</th>
                 </tr>
               </thead>
 
@@ -338,31 +531,38 @@ export function RequestTicketsPage() {
                     <td className="whitespace-nowrap px-5 py-4"><StatusBadge status={ticket.status} /></td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">{ticket.assigned_to || "-"}</td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">{[ticket.country, ticket.region].filter(Boolean).join(" / ") || "-"}</td>
-                    <td className="px-5 py-4 text-slate-400">{shortText(ticket.request_description)}</td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatDate(ticket.created_at)}</td>
                     <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatDate(ticket.closed_at)}</td>
                     <td className="whitespace-nowrap px-5 py-4">
-                      {canManage ? (
-                        <div className="flex flex-nowrap items-center gap-2">
-                          <button
-                            className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-blue-200 hover:bg-slate-700"
-                            onClick={() => setEditing(ticket)}
-                            title="تعديل"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
+                      <div className="flex flex-nowrap items-center gap-2">
+                        <button
+                          className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-100 hover:bg-slate-700"
+                          onClick={() => setDetails(ticket)}
+                          title="عرض التفاصيل"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
 
-                          <button
-                            className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
-                            onClick={() => confirmDelete(ticket)}
-                            title="حذف"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-500">عرض فقط</span>
-                      )}
+                        {canManage ? (
+                          <>
+                            <button
+                              className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-blue-200 hover:bg-slate-700"
+                              onClick={() => setEditing(ticket)}
+                              title="تعديل"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+
+                            <button
+                              className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
+                              onClick={() => confirmDelete(ticket)}
+                              title="حذف"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -388,7 +588,34 @@ export function RequestTicketsPage() {
   );
 }
 
-function Info({ label, value }: { label: string; value?: string | null }) {
+function SummaryGrid({ summary }: { summary?: RequestTicketsSummary }) {
+  const items = [
+    { label: "إجمالي الطلبات", value: formatNumber(summaryValue(summary, ["total_requests", "total_tickets", "total"])) },
+    { label: "الطلبات المنفذة", value: formatNumber(summaryValue(summary, ["executed_requests", "completed_requests", "completed"])) },
+    { label: "الطلبات الملغاة", value: formatNumber(summaryValue(summary, ["cancelled_requests", "cancelled"])) },
+    { label: "الطلبات المعلقة", value: formatNumber(summaryValue(summary, ["pending_requests", "pending"])) },
+    { label: "مجموع مبالغ الطلبات", value: formatCurrency(summaryValue(summary, ["order_amount_sum", "total_order_amount"])) },
+    { label: "مجموع الضريبة", value: formatCurrency(summaryValue(summary, ["vat_amount_sum", "total_vat_amount"])) },
+    { label: "إجمالي المبالغ", value: formatCurrency(summaryValue(summary, ["total_amount_sum", "grand_total_amount"])) },
+    { label: "متوسط قيمة الطلب", value: formatCurrency(summaryValue(summary, ["average_order_value", "avg_order_value"])) },
+    { label: "أعلى قيمة طلب", value: formatCurrency(summaryValue(summary, ["max_order_value", "highest_order_value"])) },
+    { label: "عدد الطلبات بدون مورد مرتبط", value: formatNumber(summaryValue(summary, ["tickets_without_supplier", "requests_without_supplier"])) },
+    { label: "عدد الطلبات التي لديها موردين مرتبطين", value: formatNumber(summaryValue(summary, ["tickets_with_suppliers", "requests_with_suppliers"])) },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+          <p className="text-sm text-slate-500">{item.label}</p>
+          <p className="mt-2 text-2xl font-black text-white">{item.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <div>
       <p className="text-xs font-bold text-slate-500">{label}</p>
@@ -397,11 +624,109 @@ function Info({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function RequestTicketDetailsModal({
+  ticket,
+  suppliers,
+  onClose,
+}: {
+  ticket: RequestTicket;
+  suppliers: Supplier[];
+  onClose: () => void;
+}) {
+  const linked = linkedSuppliers(ticket, suppliers);
+
+  return (
+    <Modal title="تفاصيل تذكرة الطلب" onClose={onClose}>
+      <div className="space-y-5">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Info label="رقم التذكرة" value={ticket.ticket_number} />
+          <Info label="اسم العميل" value={ticket.customer_name} />
+          <div>
+            <p className="text-xs font-bold text-slate-500">الحالة</p>
+            <div className="mt-1"><StatusBadge status={ticket.status} /></div>
+          </div>
+          <Info label="رقم الجوال" value={ticket.phone} />
+          <Info label="البريد الإلكتروني" value={ticket.email} />
+          <Info label="المنطقة" value={[ticket.country, ticket.region].filter(Boolean).join(" / ")} />
+          <Info label="مبلغ الطلب" value={formatCurrency(ticket.order_amount)} />
+          <Info label="الضريبة" value={formatCurrency(ticket.vat_amount)} />
+          <Info label="الإجمالي" value={formatCurrency(ticket.total_amount ?? (numberValue(ticket.order_amount) + numberValue(ticket.vat_amount)))} />
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+          <p className="text-xs font-bold text-slate-500">وصف الطلب</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-100">{ticket.request_description || "-"}</p>
+        </div>
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+          <h3 className="font-black text-white">الموردين المرتبطين</h3>
+          {linked.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-400">لا يوجد موردين مرتبطين بهذه التذكرة</p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[620px] text-right text-sm">
+                <thead className="text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2 font-black">اسم المورد</th>
+                    <th className="px-3 py-2 font-black">رقم الجوال</th>
+                    <th className="px-3 py-2 font-black">البريد الإلكتروني</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {linked.map((supplier) => (
+                    <tr key={supplier.id}>
+                      <td className="px-3 py-3 font-bold text-white">{supplierName(supplier)}</td>
+                      <td className="px-3 py-3 text-slate-300" dir="ltr">{supplierPhone(supplier)}</td>
+                      <td className="px-3 py-3 text-slate-300" dir="ltr">{supplierEmail(supplier)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null; onClose: () => void }) {
   const queryClient = useQueryClient();
   const { setMessage } = useAuth();
   const [error, setError] = useState("");
   const [form, setForm] = useState<Partial<RequestTicket>>(() => ticket ? { ...ticket } : emptyForm());
+  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => extractSupplierIds(ticket));
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const suppliersQuery = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers, staleTime: 60_000 });
+
+  const orderAmount = numberValue(form.order_amount);
+  const vatAmount = numberValue(form.vat_amount);
+  const totalAmount = orderAmount + vatAmount;
+
+  const supplierOptions = useMemo(() => {
+    const term = supplierSearch.trim().toLowerCase();
+    const suppliers = suppliersQuery.data || [];
+
+    if (!term) return suppliers.slice(0, 40);
+
+    return suppliers.filter((supplier) => {
+      const haystack = [
+        supplierName(supplier),
+        supplier.phone,
+        supplier.mobile,
+        supplier.contact_phone,
+        supplier.email,
+        supplier.contact_email,
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      return haystack.includes(term);
+    }).slice(0, 40);
+  }, [supplierSearch, suppliersQuery.data]);
+
+  const selectedSuppliers = useMemo(() => {
+    const ids = new Set(selectedSupplierIds);
+    return (suppliersQuery.data || []).filter((supplier) => ids.has(String(supplier.id)));
+  }, [selectedSupplierIds, suppliersQuery.data]);
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -418,17 +743,30 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
         source: form.source?.trim() || null,
         internal_notes: form.internal_notes?.trim() || null,
         cancellation_reason: form.status === "cancelled" ? form.cancellation_reason?.trim() || null : null,
+        supplier_ids: selectedSupplierIds,
+        order_amount: optionalNumber(form.order_amount),
+        vat_amount: optionalNumber(form.vat_amount),
+        total_amount: totalAmount,
       };
 
       return ticket ? updateRequestTicket(ticket.id, payload) : createRequestTicket(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
+      queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardRequestTicketsSummary"] });
       setMessage(ticket ? "تم تحديث التذكرة" : "تم إنشاء التذكرة");
       onClose();
     },
     onError: (err) => setError(err instanceof Error ? err.message : "فشل حفظ التذكرة"),
   });
+
+  function setSupplier(id: string, selected: boolean) {
+    setSelectedSupplierIds((current) => {
+      if (selected) return current.includes(id) ? current : [...current, id];
+      return current.filter((item) => item !== id);
+    });
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -518,6 +856,44 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           </Field>
         </div>
 
+        <div className="grid gap-4 md:grid-cols-3">
+          <Field label="مبلغ الطلب">
+            <Input
+              dir="ltr"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.order_amount ?? ""}
+              onChange={(event) => setForm({ ...form, order_amount: event.target.value })}
+            />
+          </Field>
+
+          <Field label="الضريبة">
+            <Input
+              dir="ltr"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.vat_amount ?? ""}
+              onChange={(event) => setForm({ ...form, vat_amount: event.target.value })}
+            />
+          </Field>
+
+          <Field label="الإجمالي">
+            <Input dir="ltr" readOnly value={totalAmount.toFixed(2)} className="bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300" />
+          </Field>
+        </div>
+
+        <SupplierMultiSelect
+          loading={suppliersQuery.isLoading}
+          options={supplierOptions}
+          search={supplierSearch}
+          selectedIds={selectedSupplierIds}
+          selectedSuppliers={selectedSuppliers}
+          setSearch={setSupplierSearch}
+          setSupplier={setSupplier}
+        />
+
         <Field label="وصف الطلب" required>
           <Textarea value={form.request_description || ""} onChange={(event) => setForm({ ...form, request_description: event.target.value })} />
         </Field>
@@ -542,5 +918,81 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
         </div>
       </form>
     </Modal>
+  );
+}
+
+function SupplierMultiSelect({
+  loading,
+  options,
+  search,
+  selectedIds,
+  selectedSuppliers,
+  setSearch,
+  setSupplier,
+}: {
+  loading: boolean;
+  options: Supplier[];
+  search: string;
+  selectedIds: string[];
+  selectedSuppliers: Supplier[];
+  setSearch: (value: string) => void;
+  setSupplier: (id: string, selected: boolean) => void;
+}) {
+  return (
+    <div>
+      <Field label="الموردين المرتبطين">
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="ابحث باسم المورد أو رقم الجوال أو البريد"
+        />
+      </Field>
+
+      {selectedSuppliers.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {selectedSuppliers.map((supplier) => (
+            <button
+              key={supplier.id}
+              type="button"
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-sm font-bold text-blue-100"
+              onClick={() => setSupplier(String(supplier.id), false)}
+            >
+              {supplierName(supplier)}
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3 max-h-60 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950">
+        {loading ? (
+          <div className="p-4 text-sm text-slate-400">جاري تحميل الموردين...</div>
+        ) : options.length === 0 ? (
+          <div className="p-4 text-sm text-slate-400">لا توجد نتائج مطابقة</div>
+        ) : (
+          options.map((supplier) => {
+            const id = String(supplier.id);
+            const checked = selectedIds.includes(id);
+
+            return (
+              <label key={id} className="flex cursor-pointer items-start gap-3 border-b border-slate-800 px-4 py-3 last:border-b-0 hover:bg-slate-900">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-900"
+                  checked={checked}
+                  onChange={(event) => setSupplier(id, event.target.checked)}
+                />
+                <span>
+                  <span className="block font-bold text-white">{supplierName(supplier)}</span>
+                  <span className="mt-1 block text-xs text-slate-500" dir="ltr">
+                    {[supplierPhone(supplier), supplierEmail(supplier)].filter((value) => value && value !== "-").join(" | ") || "-"}
+                  </span>
+                </span>
+              </label>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }

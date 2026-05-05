@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, BarChart3, Clock, FileWarning, PackageCheck, TrendingDown, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { listActivity } from "../../services/activityService";
+import { getDashboardRequestTicketsSummary } from "../../services/requestTicketService";
 import { listSupplierPerformance, listSuppliers } from "../../services/supplierService";
 import { Card, EmptyState, LoadingState } from "../../components/shared/Primitives";
 import { formatCurrency, formatDateTime, formatNumber, percentage, serviceScoreLabel } from "../../lib/format";
+import type { RequestTicketsSummary } from "../../types";
 
 function sameDate(value: string | undefined, mode: "today" | "week" | "month") {
   if (!value) return false;
@@ -27,10 +29,23 @@ function olderThanDays(value: string | undefined | null, days: number) {
   return date < cutoff;
 }
 
+function summaryValue(summary: RequestTicketsSummary | undefined, keys: Array<keyof RequestTicketsSummary>) {
+  for (const key of keys) {
+    const value = summary?.[key];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return 0;
+}
+
 export function DashboardPage() {
   const suppliersQuery = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers, staleTime: 60_000 });
   const performanceQuery = useQuery({ queryKey: ["supplier-performance"], queryFn: listSupplierPerformance, staleTime: 60_000 });
   const activityQuery = useQuery({ queryKey: ["activity"], queryFn: () => listActivity(8), staleTime: 30_000 });
+  const requestTicketsSummaryQuery = useQuery({
+    queryKey: ["dashboardRequestTicketsSummary"],
+    queryFn: getDashboardRequestTicketsSummary,
+    staleTime: 60_000,
+  });
 
   const suppliers = suppliersQuery.data || [];
   const performance = performanceQuery.data || [];
@@ -56,6 +71,15 @@ export function DashboardPage() {
     { name: "إجمالي", value: totalOrders },
   ];
 
+  const ticketSummary = requestTicketsSummaryQuery.data;
+  const ticketCards = [
+    { label: "إجمالي الطلبات", value: requestTicketsSummaryQuery.isLoading ? "-" : formatNumber(summaryValue(ticketSummary, ["total_requests", "total_tickets", "total"])), icon: BarChart3, tone: "text-blue-300" },
+    { label: "الطلبات المنفذة", value: requestTicketsSummaryQuery.isLoading ? "-" : formatNumber(summaryValue(ticketSummary, ["executed_requests", "completed_requests", "completed"])), icon: PackageCheck, tone: "text-emerald-300" },
+    { label: "الطلبات الملغاة", value: requestTicketsSummaryQuery.isLoading ? "-" : formatNumber(summaryValue(ticketSummary, ["cancelled_requests", "cancelled"])), icon: TrendingDown, tone: "text-rose-300" },
+    { label: "الطلبات المعلقة", value: requestTicketsSummaryQuery.isLoading ? "-" : formatNumber(summaryValue(ticketSummary, ["pending_requests", "pending"])), icon: Clock, tone: "text-amber-300" },
+    { label: "إجمالي قيمة الطلبات", value: requestTicketsSummaryQuery.isLoading ? "-" : formatCurrency(summaryValue(ticketSummary, ["total_amount_sum", "grand_total_amount", "order_amount_sum", "total_order_amount"])), icon: PackageCheck, tone: "text-emerald-300" },
+  ];
+
   const cards = [
     { label: "عدد الموردين", value: formatNumber(suppliers.length), icon: Users, tone: "text-blue-300" },
     { label: "الموردون النشطون", value: formatNumber(suppliers.filter((supplier) => supplier.status === "Active").length), icon: PackageCheck, tone: "text-emerald-300" },
@@ -77,6 +101,23 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       {suppliersQuery.error && <Card className="p-4 text-rose-200">فشل تحميل بيانات الموردين</Card>}
+      {requestTicketsSummaryQuery.error && <Card className="p-4 text-rose-200">فشل تحميل ملخص تذاكر الطلبات</Card>}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {ticketCards.map((card) => (
+          <Card key={card.label} className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">{card.label}</p>
+                <p className="mt-2 text-3xl font-black text-white">{card.value}</p>
+              </div>
+              <div className={`rounded-2xl bg-slate-800 p-3 ${card.tone}`}>
+                <card.icon className="h-6 w-6" />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
@@ -164,7 +205,7 @@ export function DashboardPage() {
               (activityQuery.data || []).map((item) => (
                 <div key={item.id} className="border-r-2 border-blue-700 pr-4">
                   <p className="font-bold text-white">{item.action}</p>
-                  <p className="text-sm text-slate-500">{item.entity_type} · {formatDateTime(item.created_at)}</p>
+                  <p className="text-sm text-slate-500">{item.entity_type} - {formatDateTime(item.created_at)}</p>
                 </div>
               ))
             )}
