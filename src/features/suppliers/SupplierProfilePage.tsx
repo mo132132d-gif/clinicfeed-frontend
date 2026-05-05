@@ -2,11 +2,12 @@ import { FormEvent, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Copy, Download, Edit2, Plus, Save, Trash2, Upload } from "lucide-react";
+import { Archive, ArrowRight, Copy, Download, Edit2, Plus, Save, Trash2, Upload } from "lucide-react";
 import { allowedFileExtensions, contractStatuses, documentTypes, maxFileSize } from "../../lib/constants";
-import { canEditPerformance, canManageSuppliers, canUploadFiles } from "../../lib/permissions";
-import { documentTypeLabel, expiryState, formatCurrency, formatDate, formatDateTime, formatNumber, percentage, serviceScoreLabel } from "../../lib/format";
+import { canArchiveSuppliers, canEditPerformance, canManageSuppliers, canUploadFiles } from "../../lib/permissions";
+import { documentTypeLabel, expiryState, formatCurrency, formatDate, formatDateTime, formatNumber, parseCategories, percentage, serviceScoreLabel } from "../../lib/format";
 import {
+  archiveSupplier,
   createContact,
   createContract,
   createDocument,
@@ -26,6 +27,7 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import type { Contact, Contract, SupplierDocument, SupplierPerformance } from "../../types";
 import { Button, Card, EmptyState, ExpiryBadge, Field, Input, LoadingState, Modal, Select, StatusBadge, Textarea } from "../../components/shared/Primitives";
+import { SupplierFormModal } from "./SupplierFormModal";
 
 type Tab = "overview" | "contacts" | "documents" | "contracts" | "activity" | "performance";
 
@@ -73,7 +75,7 @@ export function SupplierProfilePage() {
   const { user, setMessage } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
-  const [modal, setModal] = useState<null | "contact" | "contract" | "document" | "performance">(null);
+  const [modal, setModal] = useState<null | "supplier" | "contact" | "contract" | "document" | "performance">(null);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [editingDocument, setEditingDocument] = useState<SupplierDocument | null>(null);
@@ -111,6 +113,27 @@ export function SupplierProfilePage() {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: archiveSupplier,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier", id] });
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      setMessage("تمت أرشفة المورد");
+    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت الأرشفة"),
+  });
+
+  function confirmArchiveSupplier() {
+    if (!canArchiveSuppliers(user?.role)) {
+      setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
+      return;
+    }
+
+    if (window.confirm("هل تريد أرشفة المورد؟")) {
+      archiveMutation.mutate(id);
+    }
+  }
+
   const profileTabs: Array<{ key: Tab; label: string }> = [
     { key: "overview", label: "نظرة عامة" },
     { key: "contacts", label: "جهات الاتصال" },
@@ -144,6 +167,7 @@ export function SupplierProfilePage() {
       {modal === "contract" && <ContractModal supplierId={id} contract={editingContract} onClose={() => { setModal(null); setEditingContract(null); }} />}
       {modal === "document" && <DocumentModal supplierId={id} document={editingDocument} onClose={() => { setModal(null); setEditingDocument(null); }} />}
       {modal === "performance" && <PerformanceModal supplierId={id} performance={performance} onClose={() => setModal(null)} />}
+      {modal === "supplier" && <SupplierFormModal supplier={supplier} onClose={() => setModal(null)} onSaved={() => setMessage("تم حفظ بيانات المورد")} />}
 
       <Link to="/suppliers" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white">
         <ArrowRight className="h-4 w-4" />
@@ -159,11 +183,29 @@ export function SupplierProfilePage() {
             </div>
             <p className="mt-2 text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
             <p className="mt-3 text-sm text-slate-400">معرّف المورد: <span dir="ltr">{supplier.id}</span></p>
+            {(canManageSuppliers(user?.role) || canArchiveSuppliers(user?.role)) && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {canManageSuppliers(user?.role) && (
+                  <Button onClick={() => setModal("supplier")}>
+                    <Edit2 className="h-4 w-4" />
+                    تعديل المورد
+                  </Button>
+                )}
+
+                {canArchiveSuppliers(user?.role) && (
+                  <Button variant="danger" onClick={confirmArchiveSupplier} disabled={archiveMutation.isPending}>
+                    <Archive className="h-4 w-4" />
+                    أرشفة المورد
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
             <Info label="المدينة" value={supplier.city} />
             <Info label="السجل التجاري" value={supplier.cr_number} ltr />
             <Info label="الرقم الضريبي" value={supplier.vat_number} ltr />
+            <Info label="التصنيفات" value={parseCategories(supplier.category).join(", ")} />
             <Info label="آخر تحديث" value={formatDate(supplier.updated_at || supplier.created_at)} />
           </div>
         </div>

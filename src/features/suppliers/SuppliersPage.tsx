@@ -1,11 +1,11 @@
 ﻿import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, Edit2, Eye, Plus, RefreshCw, Search, Upload } from "lucide-react";
+import { Plus, RefreshCw, Search, Upload } from "lucide-react";
 import { categoryOptions, supplierStatuses } from "../../lib/constants";
 import { formatDate, parseCategories } from "../../lib/format";
-import { canArchiveSuppliers, canCreateSupplier, canManageSuppliers } from "../../lib/permissions";
-import { archiveSupplier, importSuppliers, listSuppliers, previewSupplierImport } from "../../services/supplierService";
+import { canCreateSupplier } from "../../lib/permissions";
+import { importSuppliers, listSuppliers, previewSupplierImport } from "../../services/supplierService";
 import { useAuth } from "../auth/AuthProvider";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import type { Supplier } from "../../types";
@@ -27,15 +27,6 @@ export function SuppliersPage() {
 
   const suppliersQuery = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers, staleTime: 60_000 });
   const suppliers = suppliersQuery.data || [];
-
-  const archiveMutation = useMutation({
-    mutationFn: archiveSupplier,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-      setMessage("تمت أرشفة المورد");
-    },
-    onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت الأرشفة"),
-  });
 
   const previewMutation = useMutation({
     mutationFn: previewSupplierImport,
@@ -134,17 +125,6 @@ export function SuppliersPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
   const hasRows = rows.length > 0;
-
-  function confirmArchive(supplier: Supplier) {
-    if (!canArchiveSuppliers(user?.role)) {
-      setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
-      return;
-    }
-
-    if (window.confirm(`هل تريد أرشفة المورد: ${supplier.name_ar}؟`)) {
-      archiveMutation.mutate(supplier.id);
-    }
-  }
 
   return (
     <div className="space-y-6">

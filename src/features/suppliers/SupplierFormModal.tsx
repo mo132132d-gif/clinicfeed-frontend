@@ -9,9 +9,11 @@ import { Button, Field, Input, Modal, Select, Textarea } from "../../components/
 export function SupplierFormModal({
   supplier,
   onClose,
+  onSaved,
 }: {
   supplier?: Supplier | null;
   onClose: () => void;
+  onSaved?: (supplier: Supplier) => void;
 }) {
   const queryClient = useQueryClient();
 
@@ -43,13 +45,14 @@ export function SupplierFormModal({
 
       return supplier ? updateSupplier(supplier.id, payload) : createSupplier(payload);
     },
-    onSuccess: () => {
+    onSuccess: (savedSupplier) => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
 
       if (supplier?.id) {
         queryClient.invalidateQueries({ queryKey: ["supplier", supplier.id] });
       }
 
+      onSaved?.(savedSupplier);
       onClose();
     },
     onError: (err) => {
