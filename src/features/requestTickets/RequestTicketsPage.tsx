@@ -82,7 +82,7 @@ function emptyForm(): Partial<RequestTicket> {
     region: "",
     request_description: "",
     assigned_to: "",
-    status: "جديد",
+    status: "new",
     priority: "medium",
     source: "",
     internal_notes: "",
@@ -99,11 +99,11 @@ function ticketStatus(ticket: RequestTicket) {
 }
 
 function isCancelledTicket(ticket: RequestTicket) {
-  return ticketStatus(ticket) === "ملغية";
+  return ticketStatus(ticket) === "cancelled";
 }
 
 function isExecutedTicket(ticket: RequestTicket) {
-  return ticketStatus(ticket) === "منفذة";
+  return ticketStatus(ticket) === "completed";
 }
 
 function matchesView(ticket: RequestTicket, view?: ViewValue) {
@@ -837,7 +837,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
         priority: form.priority || "medium",
         source: form.source?.trim() || null,
         internal_notes: form.internal_notes?.trim() || null,
-        cancellation_reason: normalizedStatus === "ملغية" ? form.cancellation_reason?.trim() || null : null,
+        cancellation_reason: normalizedStatus === "cancelled" ? form.cancellation_reason?.trim() || null : null,
         supplier_ids: selectedSupplierIds,
         order_amount: optionalNumber(form.order_amount),
         vat_amount: optionalNumber(form.vat_amount),
@@ -998,7 +998,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           <Textarea value={form.internal_notes || ""} onChange={(event) => setForm({ ...form, internal_notes: event.target.value })} />
         </Field>
 
-        {normalizeRequestTicketStatus(form.status) === "ملغية" && (
+        {normalizeRequestTicketStatus(form.status) === "cancelled" && (
           <Field label="سبب الإلغاء">
             <Textarea value={form.cancellation_reason || ""} onChange={(event) => setForm({ ...form, cancellation_reason: event.target.value })} />
           </Field>
