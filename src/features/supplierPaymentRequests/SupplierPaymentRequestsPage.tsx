@@ -60,12 +60,14 @@ import {
 const pageSize = 25;
 const statusOptionClassName = "bg-slate-950 text-slate-100 checked:bg-blue-700 checked:text-white";
 const supplierRequiredMessage = "اختر المورد أولاً.";
+const defaultPaymentReason = "سداد مستحقات مورد";
 
 function emptyForm(): Partial<SupplierPaymentRequest> {
   return {
     supplier_id: null,
     supplier_ids: [],
     amount: "",
+    payment_reason: defaultPaymentReason,
     status: "New",
     priority: "Normal",
     due_date: "",
@@ -518,7 +520,13 @@ function SupplierPaymentRequestModal({
   const queryClient = useQueryClient();
   const { setMessage } = useAuth();
   const [error, setError] = useState("");
-  const [form, setForm] = useState<Partial<SupplierPaymentRequest>>(() => request ? { ...request } : emptyForm());
+  const [form, setForm] = useState<Partial<SupplierPaymentRequest>>(() => {
+    if (!request) return emptyForm();
+    return {
+      ...request,
+      payment_reason: request.payment_reason || defaultPaymentReason,
+    };
+  });
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => extractSupplierIds(request));
   const [supplierSearch, setSupplierSearch] = useState("");
   const [documentType, setDocumentType] = useState<SupplierPaymentDocumentType>("Supplier Invoice");
@@ -564,6 +572,7 @@ function SupplierPaymentRequestModal({
         supplier_id: selectedSupplierIds[0] || null,
         supplier_ids: selectedSupplierIds,
         amount: numberValue(form.amount),
+        payment_reason: String(form.payment_reason || "").trim() || defaultPaymentReason,
         status: form.status || "New",
         priority: form.priority || "Normal",
         due_date: form.due_date || null,
@@ -666,6 +675,13 @@ function SupplierPaymentRequestModal({
               step="0.01"
               value={form.amount ?? ""}
               onChange={(event) => setForm({ ...form, amount: event.target.value })}
+            />
+          </Field>
+
+          <Field label="سبب السداد">
+            <Input
+              value={form.payment_reason || ""}
+              onChange={(event) => setForm({ ...form, payment_reason: event.target.value })}
             />
           </Field>
 

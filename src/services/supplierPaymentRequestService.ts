@@ -28,6 +28,8 @@ export interface SupplierPaymentRequestListResult {
   summary?: SupplierPaymentRequestsSummary;
 }
 
+const DEFAULT_PAYMENT_REASON = "سداد مستحقات مورد";
+
 function appendParams(query: URLSearchParams, params?: SupplierPaymentRequestParams) {
   if (!params) return;
 
@@ -42,7 +44,15 @@ function compactPayload<T extends Record<string, unknown>>(payload: T) {
   return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined));
 }
 
-function paymentRequestPayload(data: Partial<SupplierPaymentRequest>) {
+function paymentReasonPayload(data: Partial<SupplierPaymentRequest>, useDefault: boolean) {
+  if (data.payment_reason !== undefined || useDefault) {
+    return String(data.payment_reason || "").trim() || DEFAULT_PAYMENT_REASON;
+  }
+
+  return undefined;
+}
+
+function paymentRequestPayload(data: Partial<SupplierPaymentRequest>, useDefaultPaymentReason = false) {
   const supplierIds = Array.isArray(data.supplier_ids)
     ? [...new Set(data.supplier_ids.filter(Boolean).map(String))]
     : [];
@@ -55,6 +65,7 @@ function paymentRequestPayload(data: Partial<SupplierPaymentRequest>) {
     supplier_id: supplierId,
     supplier_ids: linkedSupplierIds,
     amount: data.amount,
+    payment_reason: paymentReasonPayload(data, useDefaultPaymentReason),
     status: data.status,
     priority: data.priority,
     due_date: data.due_date || null,
@@ -87,7 +98,7 @@ export async function getSupplierPaymentRequest(id: string) {
 export async function createSupplierPaymentRequest(data: Partial<SupplierPaymentRequest>) {
   const payload = await apiRequest<{ data: SupplierPaymentRequest }>("/supplier-payment-requests", {
     method: "POST",
-    body: JSON.stringify(paymentRequestPayload(data)),
+    body: JSON.stringify(paymentRequestPayload(data, true)),
   });
 
   return unwrapData<SupplierPaymentRequest>(payload);

@@ -227,6 +227,7 @@ export interface SupplierPaymentRequest {
   supplier_ids?: string[];
   suppliers?: SupplierPaymentRequestSupplier[];
   amount: number | string;
+  payment_reason?: string | null;
   status: string;
   priority?: string | null;
   due_date?: string | null;
