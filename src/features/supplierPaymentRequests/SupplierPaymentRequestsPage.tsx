@@ -59,6 +59,7 @@ import {
 
 const pageSize = 25;
 const statusOptionClassName = "bg-slate-950 text-slate-100 checked:bg-blue-700 checked:text-white";
+const supplierRequiredMessage = "اختر المورد أولاً.";
 
 function emptyForm(): Partial<SupplierPaymentRequest> {
   return {
@@ -604,6 +605,10 @@ function SupplierPaymentRequestModal({
   });
 
   function setSupplier(id: string, selected: boolean) {
+    if (selected && error === supplierRequiredMessage) {
+      setError("");
+    }
+
     setSelectedSupplierIds((current) => {
       if (selected) return current.includes(id) ? current : [...current, id];
       return current.filter((item) => item !== id);
@@ -612,6 +617,12 @@ function SupplierPaymentRequestModal({
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    setError("");
+    if (selectedSupplierIds.length === 0) {
+      setError(supplierRequiredMessage);
+      return;
+    }
+
     if (numberValue(form.amount) <= 0) {
       setError("المبلغ مطلوب ويجب أن يكون أكبر من صفر");
       return;
@@ -643,6 +654,7 @@ function SupplierPaymentRequestModal({
           selectedSuppliers={selectedSuppliers}
           setSearch={setSupplierSearch}
           setSupplier={setSupplier}
+          supplierError={error === supplierRequiredMessage ? error : ""}
         />
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -1005,6 +1017,7 @@ function SupplierMultiSelect({
   selectedSuppliers,
   setSearch,
   setSupplier,
+  supplierError,
 }: {
   loading: boolean;
   options: Supplier[];
@@ -1013,16 +1026,23 @@ function SupplierMultiSelect({
   selectedSuppliers: Array<Supplier | SupplierPaymentRequestSupplier>;
   setSearch: (value: string) => void;
   setSupplier: (id: string, selected: boolean) => void;
+  supplierError?: string;
 }) {
   return (
     <div>
-      <Field label="الموردون">
+      <Field label="الموردون" required>
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="ابحث باسم المورد أو الهاتف أو البريد أو المدينة"
         />
       </Field>
+
+      {supplierError && (
+        <p className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm font-bold text-rose-200">
+          {supplierError}
+        </p>
+      )}
 
       {selectedSuppliers.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -1040,7 +1060,7 @@ function SupplierMultiSelect({
         </div>
       )}
 
-      <div className="mt-3 max-h-72 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950">
+      <div className={`mt-3 max-h-72 overflow-y-auto rounded-xl border bg-slate-950 ${supplierError ? "border-rose-500/60" : "border-slate-800"}`}>
         {loading ? (
           <div className="p-4 text-sm text-slate-400">جاري تحميل الموردين...</div>
         ) : options.length === 0 ? (
