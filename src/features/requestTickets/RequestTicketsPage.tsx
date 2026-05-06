@@ -575,7 +575,6 @@ export function RequestTicketsPage() {
                   <th className="w-[16%] px-4 py-4 font-black text-center">الحالة</th>
                   <th className="w-[14%] px-4 py-4 font-black text-center">المسؤول</th>
                   <th className="w-[10%] px-4 py-4 font-black text-center">الإنشاء</th>
-                  <th className="w-[8%] px-4 py-4 font-black text-center">الإجراءات</th>
                 </tr>
               </thead>
 
@@ -602,37 +601,6 @@ export function RequestTicketsPage() {
                     </td>
                     <td className="truncate px-4 py-4 text-slate-400">{ticket.assigned_to || "-"}</td>
                     <td className="truncate px-4 py-4 text-slate-400">{formatDate(ticket.created_at)}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-nowrap items-center gap-2">
-                        <button
-                          className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-100 hover:bg-slate-700"
-                          onClick={(event) => { event.stopPropagation(); setDetails(ticket); }}
-                          title="عرض التفاصيل"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-
-                        {canManage ? (
-                          <>
-                            <button
-                              className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-blue-200 hover:bg-slate-700"
-                              onClick={(event) => { event.stopPropagation(); setEditing(ticket); }}
-                              title="تعديل"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-
-                            <button
-                              className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
-                              onClick={(event) => { event.stopPropagation(); confirmDelete(ticket); }}
-                              title="حذف"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : null}
-                      </div>
-                    </td>
                   </tr>
                 ))}
               </tbody>
