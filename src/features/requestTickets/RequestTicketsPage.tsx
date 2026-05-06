@@ -499,7 +499,11 @@ export function RequestTicketsPage() {
       {hasRows && (
         <div className="grid gap-3 md:hidden">
           {rows.map((ticket) => (
-            <Card key={ticket.id} className="p-4">
+            <Card
+              key={ticket.id}
+              className="cursor-pointer p-4 transition hover:bg-slate-900/70"
+              onClick={() => setDetails(ticket)}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500">رقم التذكرة</p>
@@ -524,18 +528,18 @@ export function RequestTicketsPage() {
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setDetails(ticket)}>
+                <Button variant="secondary" onClick={(event) => { event.stopPropagation(); setDetails(ticket); }}>
                   <Eye className="h-4 w-4" />
                   عرض
                 </Button>
 
                 {canManage && (
                   <>
-                    <Button variant="secondary" onClick={() => setEditing(ticket)}>
+                    <Button variant="secondary" onClick={(event) => { event.stopPropagation(); setEditing(ticket); }}>
                       <Edit2 className="h-4 w-4" />
                       تعديل
                     </Button>
-                    <Button variant="danger" onClick={() => confirmDelete(ticket)}>
+                    <Button variant="danger" onClick={(event) => { event.stopPropagation(); confirmDelete(ticket); }}>
                       <Trash2 className="h-4 w-4" />
                       حذف
                     </Button>
@@ -555,32 +559,34 @@ export function RequestTicketsPage() {
         ) : rows.length === 0 ? (
           <EmptyState title={tickets.length ? "لا توجد نتائج مطابقة" : "لا توجد تذاكر طلبات"} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] table-auto bg-slate-950 text-right text-sm">
+          <div className="overflow-hidden">
+            <table className="w-full table-fixed bg-slate-950 text-right text-sm">
               <thead className="bg-[#050B18] text-slate-300">
                 <tr>
-                  <th className="min-w-[170px] px-5 py-4 font-black text-center">رقم التذكرة</th>
-                  <th className="min-w-[200px] px-5 py-4 font-black text-center">العميل</th>
-                  <th className="min-w-[140px] px-5 py-4 font-black text-center">الجوال</th>
-                  <th className="min-w-[150px] px-5 py-4 font-black text-center">الحالة</th>
-                  <th className="min-w-[160px] px-5 py-4 font-black text-center">المسؤول</th>
-                  <th className="min-w-[180px] px-5 py-4 font-black text-center">المنطقة</th>
-                  <th className="min-w-[140px] px-5 py-4 font-black text-center">الإنشاء</th>
-                  <th className="min-w-[140px] px-5 py-4 font-black text-center">الإغلاق</th>
-                  <th className="min-w-[180px] px-5 py-4 font-black text-center">الإجراءات</th>
+                  <th className="w-[15%] px-4 py-4 font-black text-center">رقم التذكرة</th>
+                  <th className="w-[23%] px-4 py-4 font-black text-center">العميل</th>
+                  <th className="w-[14%] px-4 py-4 font-black text-center">الجوال</th>
+                  <th className="w-[16%] px-4 py-4 font-black text-center">الحالة</th>
+                  <th className="w-[14%] px-4 py-4 font-black text-center">المسؤول</th>
+                  <th className="w-[10%] px-4 py-4 font-black text-center">الإنشاء</th>
+                  <th className="w-[8%] px-4 py-4 font-black text-center">الإجراءات</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-800 bg-slate-950">
                 {rows.map((ticket) => (
-                  <tr key={ticket.id} className="group bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70">
-                    <td className="whitespace-nowrap px-5 py-4 font-black text-white">{ticket.ticket_number}</td>
-                    <td className="whitespace-nowrap px-5 py-4">
-                      <p className="font-black text-white">{ticket.customer_name}</p>
-                      <p className="text-xs text-slate-500" dir="ltr">{ticket.email || "-"}</p>
+                  <tr
+                    key={ticket.id}
+                    onClick={() => setDetails(ticket)}
+                    className="group cursor-pointer bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70"
+                  >
+                    <td className="truncate px-4 py-4 font-black text-white">{ticket.ticket_number}</td>
+                    <td className="px-4 py-4">
+                      <p className="truncate font-black text-white">{ticket.customer_name}</p>
+                      <p className="truncate text-xs text-slate-500" dir="ltr">{ticket.email || "-"}</p>
                     </td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400" dir="ltr">{ticket.phone || "-"}</td>
-                    <td className="whitespace-nowrap px-5 py-4">
+                    <td className="truncate px-4 py-4 text-slate-400" dir="ltr">{ticket.phone || "-"}</td>
+                    <td className="px-4 py-4">
                       <TicketStatusSelect
                         ticket={ticket}
                         canManage={canManage}
@@ -588,15 +594,13 @@ export function RequestTicketsPage() {
                         onChange={changeTicketStatus}
                       />
                     </td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">{ticket.assigned_to || "-"}</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">{[ticket.country, ticket.region].filter(Boolean).join(" / ") || "-"}</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatDate(ticket.created_at)}</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatDate(ticket.closed_at)}</td>
-                    <td className="whitespace-nowrap px-5 py-4">
+                    <td className="truncate px-4 py-4 text-slate-400">{ticket.assigned_to || "-"}</td>
+                    <td className="truncate px-4 py-4 text-slate-400">{formatDate(ticket.created_at)}</td>
+                    <td className="px-4 py-4">
                       <div className="flex flex-nowrap items-center gap-2">
                         <button
                           className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-100 hover:bg-slate-700"
-                          onClick={() => setDetails(ticket)}
+                          onClick={(event) => { event.stopPropagation(); setDetails(ticket); }}
                           title="عرض التفاصيل"
                         >
                           <Eye className="h-4 w-4" />
@@ -606,7 +610,7 @@ export function RequestTicketsPage() {
                           <>
                             <button
                               className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-blue-200 hover:bg-slate-700"
-                              onClick={() => setEditing(ticket)}
+                              onClick={(event) => { event.stopPropagation(); setEditing(ticket); }}
                               title="تعديل"
                             >
                               <Edit2 className="h-4 w-4" />
@@ -614,7 +618,7 @@ export function RequestTicketsPage() {
 
                             <button
                               className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
-                              onClick={() => confirmDelete(ticket)}
+                              onClick={(event) => { event.stopPropagation(); confirmDelete(ticket); }}
                               title="حذف"
                             >
                               <Trash2 className="h-4 w-4" />
