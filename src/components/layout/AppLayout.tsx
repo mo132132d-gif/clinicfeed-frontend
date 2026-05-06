@@ -10,7 +10,7 @@ import {
   UserCircle,
   Users,
   
-  Ticket,X,
+  Ticket, WalletCards, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ const baseNavigation = [
   { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
   { name: "الموردين", href: "/suppliers", icon: Users },
   { name: "تذاكر الطلبات", href: "/request-tickets", icon: Ticket },
+  { name: "سداد الموردين", href: "/supplier-payments", icon: WalletCards },
   { name: "سجل النشاط", href: "/activity", icon: Activity },
   { name: "حسابي", href: "/account", icon: UserCircle },
 ];
@@ -39,6 +40,13 @@ function pageInfo(pathname: string) {
     return {
       title: "تذاكر الطلبات",
       subtitle: "إنشاء ومتابعة طلبات العملاء اليدوية",
+    };
+  }
+
+  if (pathname === "/supplier-payments") {
+    return {
+      title: "طلبات سداد الموردين",
+      subtitle: "إنشاء ومتابعة طلبات السداد ومرفقات إثبات الدفع",
     };
   }
 
