@@ -32,7 +32,16 @@ export function UsersPage() {
 
   return (
     <div className="space-y-6">
-      {editing !== undefined && <UserModal user={editing || null} onClose={() => setEditing(undefined)} />}
+      {editing !== undefined && (
+        <UserModal
+          user={editing || null}
+          onResetPassword={(selectedUser) => {
+            setEditing(undefined);
+            setResetUser(selectedUser);
+          }}
+          onClose={() => setEditing(undefined)}
+        />
+      )}
       {resetUser && <ResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} />}
 
       <Card className="p-5">
@@ -47,39 +56,92 @@ export function UsersPage() {
 
       <Card className="overflow-hidden">
         {usersQuery.isLoading ? <LoadingState /> : (usersQuery.data || []).length === 0 ? <EmptyState title="لا توجد بيانات مستخدمين" /> : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[1100px] text-right text-sm">
-              <thead className="bg-slate-950 text-slate-400">
-                <tr>{["المستخدم", "البريد الإلكتروني", "رقم الجوال", "الدور", "الحالة", "آخر دخول", "الإجراءات"].map((head) => <th key={head} className="px-5 py-4 font-black">{head}</th>)}</tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {(usersQuery.data || []).map((employee) => (
-                  <tr key={employee.id} className="hover:bg-slate-900">
-                    <td className="whitespace-nowrap px-5 py-4 font-black text-white">{employee.name}</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400" dir="ltr">{employee.email}</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400" dir="ltr">{employee.phone || "-"}</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-300">{roleLabels[employee.role]}</td>
-                    <td className="whitespace-nowrap px-5 py-4">{employee.is_active ? "مفعّل" : "معطّل"}</td>
-                    <td className="whitespace-nowrap px-5 py-4 text-slate-400">{formatDateTime(employee.last_login_at)}</td>
-                    <td className="whitespace-nowrap px-5 py-4">
-                      <div className="flex flex-nowrap gap-2">
-                        <Button variant="secondary" onClick={() => setEditing(employee)}><Edit2 className="h-4 w-4" />تعديل</Button>
-                        <Button variant={employee.is_active ? "danger" : "secondary"} onClick={() => statusMutation.mutate({ id: employee.id, active: !employee.is_active })}>{employee.is_active ? "تعطيل" : "تفعيل"}</Button>
-                        <Button variant="secondary" onClick={() => setResetUser(employee)}><KeyRound className="h-4 w-4" />إعادة كلمة المرور</Button>
-                      </div>
-                    </td>
+          <>
+            <div className="grid gap-3 p-4 md:hidden">
+              {(usersQuery.data || []).map((employee) => (
+                <Card
+                  key={employee.id}
+                  className="cursor-pointer p-4 transition hover:bg-slate-900/70"
+                  onClick={() => setEditing(employee)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-black text-white">{employee.name}</p>
+                      <p className="mt-1 truncate text-sm text-slate-400" dir="ltr">{employee.email}</p>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-black ${employee.is_active ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-200" : "border-rose-500/30 bg-rose-500/15 text-rose-200"}`}>
+                      {employee.is_active ? "مفعّل" : "معطّل"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs font-bold text-slate-500">الدور</p>
+                      <p className="mt-1 font-black text-slate-100">{roleLabels[employee.role]}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-500">الجوال</p>
+                      <p className="mt-1 font-black text-slate-100" dir="ltr">{employee.phone || "-"}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs font-bold text-slate-500">آخر دخول</p>
+                      <p className="mt-1 font-black text-slate-100">{formatDateTime(employee.last_login_at)}</p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            <div className="hidden md:block">
+              <table className="w-full table-fixed text-right text-sm">
+                <thead className="bg-slate-950 text-slate-400">
+                  <tr>
+                    <th className="w-[22%] px-5 py-4 font-black">المستخدم</th>
+                    <th className="w-[28%] px-5 py-4 font-black">البريد الإلكتروني</th>
+                    <th className="w-[16%] px-5 py-4 font-black">رقم الجوال</th>
+                    <th className="w-[14%] px-5 py-4 font-black">الدور</th>
+                    <th className="w-[10%] px-5 py-4 font-black">الحالة</th>
+                    <th className="w-[10%] px-5 py-4 font-black">آخر دخول</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {(usersQuery.data || []).map((employee) => (
+                    <tr
+                      key={employee.id}
+                      onClick={() => setEditing(employee)}
+                      className="cursor-pointer hover:bg-slate-900 [&>td]:transition-colors"
+                    >
+                      <td className="truncate px-5 py-4 font-black text-white">{employee.name}</td>
+                      <td className="truncate px-5 py-4 text-slate-400" dir="ltr">{employee.email}</td>
+                      <td className="truncate px-5 py-4 text-slate-400" dir="ltr">{employee.phone || "-"}</td>
+                      <td className="truncate px-5 py-4 text-slate-300">{roleLabels[employee.role]}</td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-full border px-3 py-1 text-xs font-black ${employee.is_active ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-200" : "border-rose-500/30 bg-rose-500/15 text-rose-200"}`}>
+                          {employee.is_active ? "مفعّل" : "معطّل"}
+                        </span>
+                      </td>
+                      <td className="truncate px-5 py-4 text-slate-400">{formatDateTime(employee.last_login_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
     </div>
   );
 }
 
-function UserModal({ user, onClose }: { user?: User | null; onClose: () => void }) {
+function UserModal({
+  user,
+  onResetPassword,
+  onClose,
+}: {
+  user?: User | null;
+  onResetPassword: (user: User) => void;
+  onClose: () => void;
+}) {
   const queryClient = useQueryClient();
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -133,7 +195,20 @@ function UserModal({ user, onClose }: { user?: User | null; onClose: () => void 
           <Field label="الحالة"><Select value={String(form.is_active)} onChange={(e) => setForm({ ...form, is_active: e.target.value === "true" })}><option value="true">مفعّل</option><option value="false">معطّل</option></Select></Field>
           {!user && <><Field label="كلمة المرور المؤقتة" required><Input dir="ltr" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field><Field label="تأكيد كلمة المرور" required><Input dir="ltr" type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} /></Field></>}
         </div>
-        <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>إلغاء</Button><Button type="submit" disabled={mutation.isPending}>حفظ</Button></div>
+        <div className="flex flex-wrap justify-between gap-2">
+          <div>
+            {user && (
+              <Button type="button" variant="secondary" onClick={() => onResetPassword(user)}>
+                <KeyRound className="h-4 w-4" />
+                إعادة كلمة المرور
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>إلغاء</Button>
+            <Button type="submit" disabled={mutation.isPending}>حفظ</Button>
+          </div>
+        </div>
       </form>
     </Modal>
   );
