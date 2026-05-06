@@ -356,6 +356,12 @@ export function RequestTicketsPage() {
         <RequestTicketDetailsModal
           ticket={details}
           suppliers={suppliersQuery.data || []}
+          canManage={canManage}
+          onEdit={(ticket) => {
+            setDetails(null);
+            setEditing(ticket);
+          }}
+          onDelete={(ticket) => confirmDelete(ticket)}
           onClose={() => setDetails(null)}
         />
       )}
@@ -725,10 +731,16 @@ function TicketStatusSelect({
 function RequestTicketDetailsModal({
   ticket,
   suppliers,
+  canManage,
+  onEdit,
+  onDelete,
   onClose,
 }: {
   ticket: RequestTicket;
   suppliers: Supplier[];
+  canManage: boolean;
+  onEdit: (ticket: RequestTicket) => void;
+  onDelete: (ticket: RequestTicket) => void;
   onClose: () => void;
 }) {
   const linked = linkedSuppliers(ticket, suppliers);
@@ -783,6 +795,19 @@ function RequestTicketDetailsModal({
             </div>
           )}
         </div>
+
+        {canManage && (
+          <div className="flex flex-wrap gap-2 border-t border-slate-800 pt-4">
+            <Button variant="secondary" onClick={() => onEdit(ticket)}>
+              <Edit2 className="h-4 w-4" />
+              تعديل التذكرة
+            </Button>
+            <Button variant="danger" onClick={() => onDelete(ticket)}>
+              <Trash2 className="h-4 w-4" />
+              حذف التذكرة
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );
