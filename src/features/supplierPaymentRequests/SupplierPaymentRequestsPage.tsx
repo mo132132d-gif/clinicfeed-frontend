@@ -520,6 +520,8 @@ function SupplierPaymentRequestModal({
   const [form, setForm] = useState<Partial<SupplierPaymentRequest>>(() => request ? { ...request } : emptyForm());
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => extractSupplierIds(request));
   const [supplierSearch, setSupplierSearch] = useState("");
+  const [documentType, setDocumentType] = useState<SupplierPaymentDocumentType>("Supplier Invoice");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const suppliersQuery = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers, staleTime: 60_000 });
 
@@ -556,7 +558,7 @@ function SupplierPaymentRequestModal({
   }, [request?.suppliers, selectedSupplierIds, suppliersQuery.data]);
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const payload: Partial<SupplierPaymentRequest> = {
         supplier_id: selectedSupplierIds[0] || null,
         supplier_ids: selectedSupplierIds,
@@ -571,11 +573,28 @@ function SupplierPaymentRequestModal({
         notes: form.notes || null,
       };
 
-      return request ? updateSupplierPaymentRequest(request.id, payload) : createSupplierPaymentRequest(payload);
+      const savedRequest = request
+        ? await updateSupplierPaymentRequest(request.id, payload)
+        : await createSupplierPaymentRequest(payload);
+
+      if (savedRequest?.id && selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          await uploadSupplierPaymentRequestDocument(savedRequest.id, { document_type: documentType, file });
+        }
+      }
+
+      return { savedRequest, uploadedCount: selectedFiles.length };
     },
-    onSuccess: (savedRequest) => {
+    onSuccess: ({ savedRequest, uploadedCount }) => {
       queryClient.invalidateQueries({ queryKey: ["supplierPaymentRequests"] });
+      if (savedRequest?.id) {
+        queryClient.invalidateQueries({ queryKey: ["supplierPaymentRequest", savedRequest.id] });
+      }
+      setSelectedFiles([]);
       setMessage(request ? "تم تحديث طلب السداد" : "تم إنشاء طلب السداد");
+      if (uploadedCount > 0) {
+        setMessage(request ? "تم تحديث طلب السداد ورفع المستندات" : "تم إنشاء طلب السداد ورفع المستندات");
+      }
       onClose();
       if (!request && savedRequest?.id) {
         onOpenDetails?.(savedRequest.id);
@@ -679,6 +698,14 @@ function SupplierPaymentRequestModal({
           <Textarea value={form.notes || ""} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
         </Field>
 
+        <PendingDocumentsSection
+          documentType={documentType}
+          selectedFiles={selectedFiles}
+          setDocumentType={setDocumentType}
+          setSelectedFiles={setSelectedFiles}
+          disabled={mutation.isPending}
+        />
+
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             إلغاء
@@ -689,6 +716,56 @@ function SupplierPaymentRequestModal({
         </div>
       </form>
     </Modal>
+  );
+}
+
+function PendingDocumentsSection({
+  documentType,
+  selectedFiles,
+  setDocumentType,
+  setSelectedFiles,
+  disabled,
+}: {
+  documentType: SupplierPaymentDocumentType;
+  selectedFiles: File[];
+  setDocumentType: (value: SupplierPaymentDocumentType) => void;
+  setSelectedFiles: (value: File[]) => void;
+  disabled: boolean;
+}) {
+  return (
+    <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h3 className="font-black text-white">مستندات الطلب</h3>
+          <p className="mt-1 text-sm text-slate-400">اختر الفاتورة أو الملفات المرتبطة ليتم رفعها تلقائيا بعد حفظ الطلب.</p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-[180px_1fr]">
+          <Select value={documentType} onChange={(event) => setDocumentType(event.target.value as SupplierPaymentDocumentType)} disabled={disabled}>
+            {supplierPaymentDocumentTypes.map((type) => (
+              <option key={type} value={type}>{supplierPaymentDocumentTypeLabel(type)}</option>
+            ))}
+          </Select>
+          <Input
+            type="file"
+            multiple
+            disabled={disabled}
+            onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))}
+          />
+        </div>
+      </div>
+
+      {selectedFiles.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {selectedFiles.map((file) => (
+            <span key={`${file.name}-${file.lastModified}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm font-bold text-slate-100">
+              <FileText className="h-4 w-4" />
+              {file.name}
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
