@@ -12,6 +12,10 @@ export function canManageSuppliers(role?: Role) {
   return role === 'admin' || role === 'manager' || role === 'operations';
 }
 
+export function canManageSupplierPaymentRequests(role?: Role) {
+  return role === 'admin' || role === 'manager' || role === 'operations';
+}
+
 export function canCreateSupplier(role?: Role) {
   return role === 'admin' || role === 'manager' || role === 'operations';
 }

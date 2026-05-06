@@ -189,3 +189,97 @@ export interface RequestTicketsSummary {
   tickets_with_suppliers?: number | string | null;
   requests_with_suppliers?: number | string | null;
 }
+
+export interface SupplierPaymentRequestSupplier extends Partial<Supplier> {
+  id: string;
+  phones?: string[];
+  emails?: string[];
+}
+
+export interface SupplierPaymentRequestDocument {
+  id: string;
+  payment_request_id: string;
+  document_type: string;
+  file_name?: string | null;
+  file_url?: string | null;
+  file_path?: string | null;
+  file_mime_type?: string | null;
+  file_size?: number | string | null;
+  uploaded_by?: string | null;
+  created_at?: string | null;
+}
+
+export interface SupplierPaymentRequestActivityLog {
+  id: string;
+  payment_request_id: string;
+  action: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  description?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+}
+
+export interface SupplierPaymentRequest {
+  id: string;
+  request_number: string;
+  supplier_id?: string | null;
+  supplier_ids?: string[];
+  suppliers?: SupplierPaymentRequestSupplier[];
+  amount: number | string;
+  status: string;
+  priority?: string | null;
+  due_date?: string | null;
+  payment_method?: string | null;
+  invoice_number?: string | null;
+  reference_number?: string | null;
+  assigned_to?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  deleted_at?: string | null;
+  documents?: SupplierPaymentRequestDocument[];
+  activity_logs?: SupplierPaymentRequestActivityLog[];
+}
+
+export interface SupplierPaymentRequestSummary {
+  total_requests?: number | string | null;
+  pending_requests?: number | string | null;
+  approved_requests?: number | string | null;
+  paid_requests?: number | string | null;
+  rejected_cancelled_requests?: number | string | null;
+  total_due_amount?: number | string | null;
+  total_paid_amount?: number | string | null;
+}
+
+export interface SupplierPaymentRequestListResult {
+  data: SupplierPaymentRequest[];
+  meta?: {
+    total?: number;
+    limit?: number;
+    offset?: number;
+  };
+  summary?: SupplierPaymentRequestSummary;
+}
+
+export type SupplierPaymentRequestStatus =
+  | "New"
+  | "Under Review"
+  | "Waiting Invoice"
+  | "Waiting Approval"
+  | "Approved"
+  | "Paid"
+  | "Rejected"
+  | "Cancelled";
+
+export type SupplierPaymentRequestPriority = "Low" | "Normal" | "High" | "Urgent";
+
+export type SupplierPaymentRequestDocumentType =
+  | "Supplier Invoice"
+  | "Quotation"
+  | "Payment Receipt"
+  | "Bank Transfer"
+  | "Other";
+
+export type SupplierPaymentRequestsSummary = SupplierPaymentRequestSummary;

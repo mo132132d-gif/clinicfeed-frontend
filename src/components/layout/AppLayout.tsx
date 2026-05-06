@@ -2,6 +2,7 @@
 import {
   Activity,
   Bell,
+  CreditCard,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -10,7 +11,7 @@ import {
   UserCircle,
   Users,
   
-  Ticket, WalletCards, X,
+  Ticket,X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,7 +24,7 @@ const baseNavigation = [
   { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
   { name: "الموردين", href: "/suppliers", icon: Users },
   { name: "تذاكر الطلبات", href: "/request-tickets", icon: Ticket },
-  { name: "سداد الموردين", href: "/supplier-payments", icon: WalletCards },
+  { name: "سداد الموردين", href: "/supplier-payment-requests", icon: CreditCard },
   { name: "سجل النشاط", href: "/activity", icon: Activity },
   { name: "حسابي", href: "/account", icon: UserCircle },
 ];
@@ -43,10 +44,10 @@ function pageInfo(pathname: string) {
     };
   }
 
-  if (pathname === "/supplier-payments") {
+  if (pathname === "/supplier-payment-requests") {
     return {
-      title: "طلبات سداد الموردين",
-      subtitle: "إنشاء ومتابعة طلبات السداد ومرفقات إثبات الدفع",
+      title: "سداد الموردين",
+      subtitle: "طلبات سداد الموردين والفواتير والمستندات",
     };
   }
 
