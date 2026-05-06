@@ -1,6 +1,5 @@
 import { apiRequest, API_URL, ApiError, getStoredToken } from "./api";
 import { normalizeList, unwrapData } from "../lib/format";
-import { normalizeRequestTicketStatus } from "../lib/requestTicketStatus";
 import type { RequestTicket, RequestTicketsSummary } from "../types";
 
 export interface RequestTicketParams {
@@ -14,7 +13,7 @@ export interface RequestTicketParams {
 
 function appendRequestTicketParams(query: URLSearchParams, params?: RequestTicketParams) {
   if (params?.view) query.set("view", params.view);
-  if (params?.status && params.status !== "all") query.set("status", normalizeRequestTicketStatus(params.status));
+  if (params?.status && params.status !== "all") query.set("status", params.status);
   if (params?.assigned_to) query.set("assigned_to", params.assigned_to);
   if (params?.search) query.set("search", params.search);
   if (params?.date_from) query.set("date_from", params.date_from);
@@ -31,7 +30,7 @@ function normalizeRequestTicketPayload(data: Partial<RequestTicket>) {
   if (!("status" in data)) return data;
   return {
     ...data,
-    status: normalizeRequestTicketStatus(data.status),
+    status: typeof data.status === "string" ? data.status.trim() : data.status,
   };
 }
 
