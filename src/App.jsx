@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { Analytics } from "@vercel/analytics/react"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api"
 const TOKEN_KEY = "clinicfeed_token"
@@ -983,6 +984,7 @@ export default function App() {
         </main>
       </div>
       {modal && renderModal()}
+      <Analytics />
     </div>
   )
 
@@ -1786,7 +1788,3 @@ export default function App() {
     )
   }
 }
-
-
-
-
