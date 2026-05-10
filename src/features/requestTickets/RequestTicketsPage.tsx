@@ -154,6 +154,96 @@ function fileHref(url?: string | null) {
   return `${base}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
+function attachmentFileName(attachment: RequestTicketAttachment) {
+  return attachment.file_name || attachment.attachment_type || "مرفق";
+}
+
+function isImageAttachment(attachment: RequestTicketAttachment) {
+  const mime = String(attachment.file_mime_type || "").toLowerCase();
+  const name = String(attachment.file_name || attachment.file_url || attachment.file_path || "").toLowerCase();
+
+  return (
+    mime.startsWith("image/") ||
+    /\.(jpg|jpeg|png|webp|gif|bmp|tiff|svg)$/i.test(name)
+  );
+}
+
+function isPdfAttachment(attachment: RequestTicketAttachment) {
+  const mime = String(attachment.file_mime_type || "").toLowerCase();
+  const name = String(attachment.file_name || attachment.file_url || attachment.file_path || "").toLowerCase();
+
+  return mime === "application/pdf" || /\.pdf$/i.test(name);
+}
+
+function AttachmentPreview({ attachment }: { attachment: RequestTicketAttachment }) {
+  const url = fileHref(attachment.file_url || attachment.file_path || "");
+  const fileName = attachmentFileName(attachment);
+  const isImage = isImageAttachment(attachment);
+  const isPdf = isPdfAttachment(attachment);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
+      <div className="flex flex-col gap-3 border-b border-slate-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="truncate font-bold text-white">{fileName}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {attachment.attachment_type || "Other"} | {formatDate(attachment.created_at)}
+          </p>
+          {attachment.file_mime_type && (
+            <p className="mt-1 text-xs text-slate-600" dir="ltr">
+              {attachment.file_mime_type}
+            </p>
+          )}
+        </div>
+
+        {url && (
+          <a
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm font-bold text-slate-100 hover:bg-slate-700"
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            فتح
+          </a>
+        )}
+      </div>
+
+      {url && isImage && (
+        <a href={url} target="_blank" rel="noreferrer" className="block bg-slate-950 p-3">
+          <img
+            src={url}
+            alt={fileName}
+            className="mx-auto max-h-[520px] w-full rounded-lg object-contain"
+            loading="lazy"
+          />
+        </a>
+      )}
+
+      {url && isPdf && (
+        <div className="bg-slate-950 p-3">
+          <iframe
+            src={url}
+            title={fileName}
+            className="h-[520px] w-full rounded-lg border border-slate-800 bg-white"
+          />
+        </div>
+      )}
+
+      {url && !isImage && !isPdf && (
+        <div className="bg-slate-950 p-4 text-sm text-slate-400">
+          لا يمكن معاينة هذا النوع داخل المنصة. اضغط زر فتح لعرض الملف أو تحميله.
+        </div>
+      )}
+
+      {!url && (
+        <div className="bg-slate-950 p-4 text-sm text-rose-300">
+          رابط المرفق غير متوفر.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function optionalNumber(value?: number | string | null) {
   if (value === "" || value === null || value === undefined) return null;
   const parsed = Number(value);
@@ -769,23 +859,10 @@ function RequestTicketDetailsModal({
           {attachments.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">لا توجد مرفقات متاحة لهذه التذكرة.</p>
           ) : (
-            <div className="mt-4 space-y-2">
-              {attachments.map((attachment) => {
-                const url = fileHref(attachment.file_url || attachment.file_path || "");
-                return (
-                  <div key={attachment.id} className="flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-900 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="truncate font-bold text-white">{attachment.file_name || attachment.attachment_type || "مرفق"}</p>
-                      <p className="mt-1 text-xs text-slate-500">{attachment.attachment_type || "Other"} | {formatDate(attachment.created_at)}</p>
-                    </div>
-                    {url && (
-                      <a className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm font-bold text-slate-100 hover:bg-slate-700" href={url} target="_blank" rel="noreferrer">
-                        فتح
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="mt-4 space-y-4">
+              {attachments.map((attachment) => (
+                <AttachmentPreview key={attachment.id || attachment.file_url || attachment.file_path} attachment={attachment} />
+              ))}
             </div>
           )}
         </section>
