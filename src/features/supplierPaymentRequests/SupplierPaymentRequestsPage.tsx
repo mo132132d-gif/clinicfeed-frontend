@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Download,
   Edit2,
-  Eye,
   FileText,
   Plus,
   RefreshCw,
@@ -30,7 +29,6 @@ import { listSuppliers } from "../../services/supplierService";
 import {
   createSupplierPaymentRequest,
   deleteSupplierPaymentRequest,
-  deleteSupplierPaymentRequestDocument,
   getSupplierPaymentRequest,
   listSupplierPaymentRequests,
   updateSupplierPaymentRequest,
@@ -242,6 +240,15 @@ export function SupplierPaymentRequestsPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const summary = requestsQuery.data?.summary;
 
+  async function refreshRequests() {
+    try {
+      await requestsQuery.refetch();
+      setMessage("تم تحديث طلبات سداد الموردين");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "فشل تحديث طلبات سداد الموردين");
+    }
+  }
+
   function confirmDelete(request: SupplierPaymentRequest) {
     if (!canManage) {
       setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
@@ -267,6 +274,14 @@ export function SupplierPaymentRequestsPage() {
         <SupplierPaymentRequestDetailsModal
           requestId={detailsId}
           canManage={canManage}
+          onEdit={(request) => {
+            setDetailsId(null);
+            setEditing(request);
+          }}
+          onDelete={(request) => {
+            setDetailsId(null);
+            confirmDelete(request);
+          }}
           onClose={() => setDetailsId(null)}
         />
       )}
@@ -275,13 +290,13 @@ export function SupplierPaymentRequestsPage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h1 className="text-2xl font-black text-white">سداد الموردين</h1>
-            <p className="mt-1 text-sm text-slate-400">متابعة طلبات سداد الموردين، المستندات، وحالة الاعتماد والسداد.</p>
+            <p className="mt-1 text-sm text-[#8F99B8]">متابعة طلبات سداد الموردين، المستندات، وحالة الاعتماد والسداد.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ["supplierPaymentRequests"] })}>
-              <RefreshCw className="h-4 w-4" />
-              تحديث
+            <Button variant="secondary" onClick={refreshRequests} disabled={requestsQuery.isFetching}>
+              <RefreshCw className={`h-4 w-4 ${requestsQuery.isFetching ? "animate-spin" : ""}`} />
+              {requestsQuery.isFetching ? "جاري التحديث..." : "تحديث"}
             </Button>
             <Button variant="secondary" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
               <Download className="h-4 w-4" />
@@ -302,7 +317,7 @@ export function SupplierPaymentRequestsPage() {
       <Card className="p-5">
         <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_0.9fr_0.9fr]">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F99B8]" />
             <Input
               className="pr-9"
               placeholder="بحث بالمورد أو رقم الطلب أو الفاتورة"
@@ -368,10 +383,10 @@ export function SupplierPaymentRequestsPage() {
         <>
           <div className="grid gap-3 md:hidden">
             {rows.map((request) => (
-              <Card key={request.id} className="p-4">
+              <Card key={request.id} className="cursor-pointer p-4 transition hover:-translate-y-px hover:bg-[#343B52]" onClick={() => setDetailsId(request.id)}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-500">رقم التذكرة</p>
+                    <p className="text-xs font-bold text-[#8F99B8]">رقم التذكرة</p>
                     <h2 className="mt-1 truncate text-base font-black text-white">{request.request_number}</h2>
                   </div>
                   <StatusBadge status={request.status} />
@@ -386,28 +401,6 @@ export function SupplierPaymentRequestsPage() {
                   <Info label="آخر تحديث" value={formatDateTime(request.updated_at)} />
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                      <Button variant="secondary" onClick={() => setDetailsId(request.id)}>
-                        <Eye className="h-4 w-4" />
-                        عرض
-                      </Button>
-                      {canManage && (
-                        <>
-                          <Button variant="secondary" onClick={() => setDetailsId(request.id)}>
-                            <Upload className="h-4 w-4" />
-                            رفع مستند
-                          </Button>
-                          <Button variant="secondary" onClick={() => setEditing(request)}>
-                            <Edit2 className="h-4 w-4" />
-                            تعديل
-                      </Button>
-                      <Button variant="danger" onClick={() => confirmDelete(request)}>
-                        <Trash2 className="h-4 w-4" />
-                        حذف
-                      </Button>
-                    </>
-                  )}
-                </div>
               </Card>
             ))}
           </div>
@@ -415,7 +408,7 @@ export function SupplierPaymentRequestsPage() {
           <Card className="hidden overflow-hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1080px] text-right text-sm">
-                <thead className="border-b border-slate-800 bg-slate-900/70 text-slate-400">
+                <thead className="border-b border-[#30364A] bg-[#252B3A] text-[#B8C1DD]">
                   <tr>
                     <th className="px-4 py-3 font-black">رقم التذكرة</th>
                     <th className="px-4 py-3 font-black">المورد</th>
@@ -425,41 +418,19 @@ export function SupplierPaymentRequestsPage() {
                     <th className="px-4 py-3 font-black">تاريخ الاستحقاق</th>
                     <th className="px-4 py-3 font-black">المسؤول</th>
                     <th className="px-4 py-3 font-black">آخر تحديث</th>
-                    <th className="px-4 py-3 font-black">الإجراءات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-[#30364A]">
                   {rows.map((request) => (
-                    <tr key={request.id} className="hover:bg-slate-900/60">
+                    <tr key={request.id} onClick={() => setDetailsId(request.id)} className="cursor-pointer transition hover:bg-[#343B52]">
                       <td className="px-4 py-4 font-black text-white">{request.request_number}</td>
-                      <td className="px-4 py-4 text-slate-200">{requestSupplierName(request)}</td>
+                      <td className="px-4 py-4 text-[#B8C1DD]">{requestSupplierName(request)}</td>
                       <td className="px-4 py-4 font-black text-white">{formatCurrency(request.amount)}</td>
                       <td className="px-4 py-4"><StatusBadge status={request.status} /></td>
-                      <td className="px-4 py-4 text-slate-300">{supplierPaymentRequestPriorityLabel(request.priority)}</td>
-                      <td className="px-4 py-4 text-slate-300">{formatDate(request.due_date)}</td>
-                      <td className="px-4 py-4 text-slate-300">{request.assigned_to || "-"}</td>
-                      <td className="px-4 py-4 text-slate-300">{formatDateTime(request.updated_at)}</td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="secondary" className="px-3" onClick={() => setDetailsId(request.id)} title="عرض">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canManage && (
-                            <>
-                              <Button variant="secondary" className="px-3" onClick={() => setEditing(request)} title="تعديل">
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button variant="secondary" className="px-3" onClick={() => setDetailsId(request.id)} title="رفع مستند">
-                                <Upload className="h-4 w-4" />
-                                <span className="sr-only">رفع مستند</span>
-                              </Button>
-                              <Button variant="danger" className="px-3" onClick={() => confirmDelete(request)} title="حذف">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+                      <td className="px-4 py-4 text-[#B8C1DD]">{supplierPaymentRequestPriorityLabel(request.priority)}</td>
+                      <td className="px-4 py-4 text-[#B8C1DD]">{formatDate(request.due_date)}</td>
+                      <td className="px-4 py-4 text-[#B8C1DD]">{request.assigned_to || "-"}</td>
+                      <td className="px-4 py-4 text-[#B8C1DD]">{formatDateTime(request.updated_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -469,13 +440,13 @@ export function SupplierPaymentRequestsPage() {
         </>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#8F99B8]">
         <span>إجمالي النتائج: {formatNumber(total)}</span>
         <div className="flex items-center gap-2">
           <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
             السابق
           </Button>
-          <span className="font-bold text-slate-200">{page} / {totalPages}</span>
+          <span className="font-bold text-[#F3F6F9]">{page} / {totalPages}</span>
           <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
             التالي
           </Button>
@@ -500,7 +471,7 @@ function SummaryCards({ summary }: { summary?: SupplierPaymentRequestSummary }) 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
         <Card key={item.label} className="p-4">
-          <p className="text-sm text-slate-400">{item.label}</p>
+          <p className="text-sm text-[#8F99B8]">{item.label}</p>
           <p className="mt-2 text-2xl font-black text-white">{item.value}</p>
         </Card>
       ))}
@@ -800,10 +771,14 @@ function PendingDocumentsSection({
 function SupplierPaymentRequestDetailsModal({
   requestId,
   canManage,
+  onEdit,
+  onDelete,
   onClose,
 }: {
   requestId: string;
   canManage: boolean;
+  onEdit: (request: SupplierPaymentRequest) => void;
+  onDelete: (request: SupplierPaymentRequest) => void;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -831,15 +806,6 @@ function SupplierPaymentRequestDetailsModal({
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشل رفع المستند"),
   });
 
-  const deleteDocumentMutation = useMutation({
-    mutationFn: (documentId: string) => deleteSupplierPaymentRequestDocument(requestId, documentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["supplierPaymentRequest", requestId] });
-      setMessage("تم حذف المستند");
-    },
-    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل حذف المستند"),
-  });
-
   const request = detailsQuery.data;
 
   return (
@@ -850,6 +816,19 @@ function SupplierPaymentRequestDetailsModal({
         <EmptyState title="فشل تحميل تفاصيل طلب السداد" />
       ) : (
         <div className="space-y-5">
+          {canManage && (
+            <div className="flex flex-wrap justify-end gap-2 rounded-xl border border-slate-800 bg-slate-950 p-3">
+              <Button variant="secondary" onClick={() => onEdit(request)}>
+                <Edit2 className="h-4 w-4" />
+                تعديل
+              </Button>
+              <Button variant="danger" onClick={() => onDelete(request)}>
+                <Trash2 className="h-4 w-4" />
+                حذف
+              </Button>
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-3">
             <Info label="رقم التذكرة" value={request.request_number} />
             <Info label="المبلغ" value={formatCurrency(request.amount)} />
@@ -896,13 +875,7 @@ function SupplierPaymentRequestDetailsModal({
             setDocumentType={setDocumentType}
             setFile={setFile}
             uploadPending={uploadMutation.isPending}
-            deletePending={deleteDocumentMutation.isPending}
             onUpload={() => uploadMutation.mutate()}
-            onDelete={(document) => {
-              if (window.confirm(`هل تريد حذف المستند ${document.file_name || ""}؟`)) {
-                deleteDocumentMutation.mutate(document.id);
-              }
-            }}
           />
 
           <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
@@ -942,9 +915,7 @@ function DocumentsSection({
   setDocumentType,
   setFile,
   uploadPending,
-  deletePending,
   onUpload,
-  onDelete,
 }: {
   documents: SupplierPaymentRequestDocument[];
   canManage: boolean;
@@ -953,9 +924,7 @@ function DocumentsSection({
   setDocumentType: (value: SupplierPaymentDocumentType) => void;
   setFile: (value: File | null) => void;
   uploadPending: boolean;
-  deletePending: boolean;
   onUpload: () => void;
-  onDelete: (document: SupplierPaymentRequestDocument) => void;
 }) {
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
@@ -1008,12 +977,6 @@ function DocumentsSection({
                         تنزيل
                       </a>
                     </>
-                  )}
-                  {canManage && (
-                    <Button variant="danger" onClick={() => onDelete(document)} disabled={deletePending}>
-                      <Trash2 className="h-4 w-4" />
-                      حذف
-                    </Button>
                   )}
                 </div>
               </div>

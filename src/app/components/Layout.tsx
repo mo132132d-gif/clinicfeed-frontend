@@ -91,12 +91,12 @@ export function Layout() {
           sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex h-24 items-center justify-between px-6 border-b border-brand-800">
-          <Link to="/" className="flex flex-1 items-center justify-center">
+        <div className="flex items-center justify-center border-b border-brand-800 bg-transparent px-4 py-5">
+          <Link to="/" className="flex flex-1 items-center justify-center bg-transparent px-4 py-5">
             <img
               src="/clinicfeed-logo.png.svg"
               alt="ClinicFeed"
-              className="block h-16 w-auto max-w-none object-contain scale-[3.2]"
+              className="sidebar-logo-img logo-needs-crop h-16 w-[190px] object-cover object-center"
             />
           </Link>
 

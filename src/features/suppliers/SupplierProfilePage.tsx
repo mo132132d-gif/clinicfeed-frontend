@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArrowRight, Copy, Download, Edit2, Plus, Save, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Archive, ArrowRight, Copy, Download, Edit2, Plus, Save, Trash2, Upload } from "lucide-react";
 import { allowedFileExtensions, contractStatuses, documentTypes, maxFileSize } from "../../lib/constants";
 import { canArchiveSuppliers, canEditPerformance, canManageSuppliers, canUploadFiles } from "../../lib/permissions";
 import { documentTypeLabel, expiryState, formatCurrency, formatDate, formatDateTime, formatNumber, parseCategories, percentage, serviceScoreLabel } from "../../lib/format";
@@ -12,6 +12,7 @@ import {
   createContract,
   createDocument,
   deleteContact,
+  deleteDocument,
   getSupplier,
   getSupplierPerformance,
   listContacts,
@@ -27,9 +28,10 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import type { Contact, Contract, SupplierDocument, SupplierPerformance } from "../../types";
 import { Button, Card, EmptyState, ExpiryBadge, Field, Input, LoadingState, Modal, Select, StatusBadge, Textarea } from "../../components/shared/Primitives";
+import { PhoneNumberInput } from "../../components/shared/PhoneNumberInput";
 import { SupplierFormModal } from "./SupplierFormModal";
 
-type Tab = "overview" | "contacts" | "documents" | "contracts" | "activity" | "performance";
+type Tab = "overview" | "contacts" | "documents" | "activity" | "performance";
 
 function fileValidation(file?: File | null) {
   if (!file) return "";
@@ -70,6 +72,21 @@ function scoreAverage(performance?: SupplierPerformance | null) {
   return scores.reduce((sum, value) => sum + value, 0) / scores.length;
 }
 
+function documentRisk(documents: SupplierDocument[]) {
+  const importantTypes = new Set(["CR", "VAT", "Authorization", "Price List"]);
+  const importantDocuments = documents.filter((document) => importantTypes.has(document.type));
+
+  if (importantDocuments.some((document) => expiryState(document.expiry_date).tone === "danger")) {
+    return { tone: "danger" as const, label: "يوجد مستند مهم منتهي" };
+  }
+
+  if (importantDocuments.some((document) => expiryState(document.expiry_date).tone === "warning")) {
+    return { tone: "warning" as const, label: "يوجد مستند مهم ينتهي قريبًا" };
+  }
+
+  return null;
+}
+
 export function SupplierProfilePage() {
   const { id = "" } = useParams();
   const { user, setMessage } = useAuth();
@@ -96,6 +113,7 @@ export function SupplierProfilePage() {
   const cancellationRate = percentage(performance?.cancelled_orders, performance?.total_orders);
   const fulfillmentRate = percentage(performance?.fulfilled_orders, performance?.total_orders);
   const avgScore = scoreAverage(performance);
+  const risk = documentRisk(documents);
 
   const deleteContactMutation = useMutation({
     mutationFn: deleteContact,
@@ -123,6 +141,16 @@ export function SupplierProfilePage() {
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت الأرشفة"),
   });
 
+  const deleteDocumentMutation = useMutation({
+    mutationFn: deleteDocument,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier", id, "documents"] });
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      setMessage("تم حذف المستند");
+    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل حذف المستند"),
+  });
+
   function confirmArchiveSupplier() {
     if (!canArchiveSuppliers(user?.role)) {
       setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
@@ -138,7 +166,6 @@ export function SupplierProfilePage() {
     { key: "overview", label: "نظرة عامة" },
     { key: "contacts", label: "جهات الاتصال" },
     { key: "documents", label: "المستندات" },
-    { key: "contracts", label: "العقود" },
     { key: "activity", label: "النشاط" },
     { key: "performance", label: "الأداء" },
   ];
@@ -169,7 +196,7 @@ export function SupplierProfilePage() {
       {modal === "performance" && <PerformanceModal supplierId={id} performance={performance} onClose={() => setModal(null)} />}
       {modal === "supplier" && <SupplierFormModal supplier={supplier} onClose={() => setModal(null)} onSaved={() => setMessage("تم حفظ بيانات المورد")} />}
 
-      <Link to="/suppliers" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white">
+      <Link to="/suppliers" className="inline-flex items-center gap-2 text-sm font-bold text-[#B8C1DD] transition hover:text-[#F3F6F9]">
         <ArrowRight className="h-4 w-4" />
         العودة إلى الموردين
       </Link>
@@ -180,9 +207,19 @@ export function SupplierProfilePage() {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-black text-white">{supplier.name_ar}</h1>
               <StatusBadge status={supplier.status} />
+              {risk && (
+                <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black ${
+                  risk.tone === "danger"
+                    ? "border-rose-500/30 bg-rose-500/15 text-rose-200"
+                    : "border-amber-500/30 bg-amber-500/15 text-amber-200"
+                }`}>
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {risk.label}
+                </span>
+              )}
             </div>
-            <p className="mt-2 text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
-            <p className="mt-3 text-sm text-slate-400">معرّف المورد: <span dir="ltr">{supplier.id}</span></p>
+            <p className="mt-2 text-[#8F99B8]" dir="ltr">{supplier.name_en || "-"}</p>
+            <p className="mt-3 text-sm text-[#B8C1DD]">معرّف المورد: <span dir="ltr">{supplier.id}</span></p>
             {(canManageSuppliers(user?.role) || canArchiveSuppliers(user?.role)) && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {canManageSuppliers(user?.role) && (
@@ -212,12 +249,12 @@ export function SupplierProfilePage() {
       </Card>
 
       <div className="overflow-x-auto">
-        <div className="inline-flex min-w-max gap-2 rounded-xl border border-slate-800 bg-[#111827] p-2">
+        <div className="inline-flex min-w-max gap-2 rounded-2xl border border-[#373E55] bg-[#242A39] p-2 shadow-inner shadow-black/10">
           {profileTabs.map((item) => (
             <button
               key={item.key}
               onClick={() => setTab(item.key)}
-              className={`rounded-lg px-4 py-2 text-sm font-black transition ${tab === item.key ? "bg-blue-800 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}
+              className={`rounded-xl px-4 py-2 text-sm font-black transition ${tab === item.key ? "bg-[#556EE6] text-white shadow-[0_10px_24px_rgba(85,110,230,0.22)]" : "text-[#B8C1DD] hover:bg-[#343B52] hover:text-[#F3F6F9]"}`}
             >
               {item.label}
             </button>
@@ -238,7 +275,7 @@ export function SupplierProfilePage() {
           </Card>
           <Card className="p-5">
             <h2 className="mb-4 text-lg font-black text-white">الملاحظات</h2>
-            <p className="min-h-32 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300">{supplier.notes || "لا توجد ملاحظات"}</p>
+            <p className="min-h-32 rounded-xl border border-[#373E55] bg-[#242A39] p-4 text-[#B8C1DD]">{supplier.notes || "لا توجد ملاحظات"}</p>
           </Card>
         </div>
       )}
@@ -247,8 +284,8 @@ export function SupplierProfilePage() {
         <TableCard title="جهات الاتصال" action={canManageSuppliers(user?.role) ? <Button onClick={() => setModal("contact")}><Plus className="h-4 w-4" />إضافة</Button> : null}>
           {contacts.length === 0 ? <EmptyState title="لا توجد جهات تواصل لهذا المورد" /> : (
             <table className="min-w-[900px] text-right text-sm">
-              <thead className="bg-slate-950 text-slate-400"><tr>{["الاسم", "المنصب", "البريد الإلكتروني", "رقم الجوال", "أساسي", "الإجراءات"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
-              <tbody className="divide-y divide-slate-800">{contacts.map((contact) => (
+              <thead className="bg-[#252B3A] text-[#B8C1DD]"><tr>{["الاسم", "المنصب", "البريد الإلكتروني", "رقم الجوال", "أساسي", "الإجراءات"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
+              <tbody className="divide-y divide-[#30364A]">{contacts.map((contact) => (
                 <tr key={contact.id}>
                   <td className="whitespace-nowrap px-4 py-3 font-bold text-white">{contact.name}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-400">{contact.position || "-"}</td>
@@ -270,14 +307,26 @@ export function SupplierProfilePage() {
       )}
 
       {tab === "documents" && (
-        <TableCard title="المستندات" action={canUploadFiles(user?.role) ? <Button onClick={() => setModal("document")}><Upload className="h-4 w-4" />رفع مستند</Button> : null}>
-          <DocumentsTable documents={documents} onEdit={(item) => { setEditingDocument(item); setModal("document"); }} canEdit={canUploadFiles(user?.role)} />
-        </TableCard>
-      )}
-
-      {tab === "contracts" && (
-        <TableCard title="العقود" action={canUploadFiles(user?.role) ? <Button onClick={() => setModal("contract")}><Upload className="h-4 w-4" />رفع عقد</Button> : null}>
-          <ContractsTable contracts={contracts} onEdit={(item) => { setEditingContract(item); setModal("contract"); }} canEdit={canUploadFiles(user?.role)} />
+        <TableCard
+          title="المستندات"
+          action={canUploadFiles(user?.role) ? (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setModal("document")}><Upload className="h-4 w-4" />رفع مستند</Button>
+              <Button variant="secondary" onClick={() => setModal("contract")}><Upload className="h-4 w-4" />إضافة عقد</Button>
+            </div>
+          ) : null}
+        >
+          <DocumentsTable
+            documents={documents}
+            contracts={contracts}
+            onEdit={(item) => { setEditingDocument(item); setModal("document"); }}
+            onDelete={(item) => {
+              if (window.confirm("هل تريد حذف هذا المستند؟")) deleteDocumentMutation.mutate(item.id);
+            }}
+            onEditContract={(item) => { setEditingContract(item); setModal("contract"); }}
+            canEdit={canUploadFiles(user?.role)}
+            deletePending={deleteDocumentMutation.isPending}
+          />
         </TableCard>
       )}
 
@@ -287,9 +336,9 @@ export function SupplierProfilePage() {
           {(activityQuery.data || []).length === 0 ? <EmptyState title="لا توجد سجلات نشاط متاحة حاليًا" /> : (
             <div className="mt-5 space-y-4">
               {(activityQuery.data || []).map((item) => (
-                <div key={item.id} className="border-r-2 border-blue-700 pr-4">
+                <div key={item.id} className="border-r-2 border-[#556EE6] pr-4">
                   <p className="font-bold text-white">{item.action}</p>
-                  <p className="text-sm text-slate-500">{item.entity_type} · {formatDateTime(item.created_at)}</p>
+                  <p className="text-sm text-[#8F99B8]">{item.entity_type} · {formatDateTime(item.created_at)}</p>
                 </div>
               ))}
             </div>
@@ -303,14 +352,14 @@ export function SupplierProfilePage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {metrics.map(([label, value]) => (
               <Card key={label} className="p-4">
-                <p className="text-sm text-slate-500">{label}</p>
+                <p className="text-sm text-[#8F99B8]">{label}</p>
                 <p className="mt-2 text-2xl font-black text-white">{value}</p>
               </Card>
             ))}
           </div>
           <Card className="p-5">
             <h2 className="text-lg font-black text-white">ملاحظات مستوى الخدمة</h2>
-            <p className="mt-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300">{performance?.service_notes || "لا توجد ملاحظات"}</p>
+            <p className="mt-3 rounded-xl border border-[#373E55] bg-[#242A39] p-4 text-[#B8C1DD]">{performance?.service_notes || "لا توجد ملاحظات"}</p>
           </Card>
         </div>
       )}
@@ -319,11 +368,11 @@ export function SupplierProfilePage() {
 }
 
 function Info({ label, value, ltr = false }: { label: string; value?: string | null; ltr?: boolean }) {
-  return <div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 font-bold text-white" dir={ltr ? "ltr" : "rtl"}>{value || "-"}</p></div>;
+  return <div className="rounded-xl border border-[#373E55] bg-[#242A39] p-3"><p className="text-xs text-[#8F99B8]">{label}</p><p className="mt-1 font-bold text-[#F3F6F9]" dir={ltr ? "ltr" : "rtl"}>{value || "-"}</p></div>;
 }
 
 function InfoBlock({ label, value }: { label: string; value?: ReactNode }) {
-  return <div className="rounded-xl border border-slate-800 bg-slate-950 p-4"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 font-bold text-white">{value || "-"}</p></div>;
+  return <div className="rounded-xl border border-[#373E55] bg-[#242A39] p-4"><p className="text-sm text-[#8F99B8]">{label}</p><p className="mt-2 font-bold text-[#F3F6F9]">{value || "-"}</p></div>;
 }
 
 function normalizeWhatsAppNumber(phone: string) {
@@ -368,12 +417,63 @@ function EmailLink({ email }: { email?: string | null }) {
 }
 
 function TableCard({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
-  return <Card className="overflow-hidden"><div className="flex items-center justify-between border-b border-slate-800 p-5"><h2 className="text-lg font-black text-white">{title}</h2>{action}</div><div className="overflow-x-auto">{children}</div></Card>;
+  return <Card className="overflow-hidden"><div className="flex items-center justify-between border-b border-[#30364A] bg-[#252B3A]/45 p-5"><h2 className="text-lg font-black text-white">{title}</h2>{action}</div><div className="overflow-x-auto">{children}</div></Card>;
 }
 
-function DocumentsTable({ documents, onEdit, canEdit }: { documents: SupplierDocument[]; onEdit: (document: SupplierDocument) => void; canEdit: boolean }) {
-  if (documents.length === 0) return <EmptyState title="لا توجد مستندات لهذا المورد" />;
-  return <table className="min-w-[1000px] text-right text-sm"><thead className="bg-slate-950 text-slate-400"><tr>{["نوع المستند", "تاريخ الانتهاء", "تاريخ الرفع", "الحالة", "الملف", "الإجراءات"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-800">{documents.map((document) => <tr key={document.id}><td className="whitespace-nowrap px-4 py-3 font-bold text-white">{documentTypeLabel(document.type)}</td><td className="whitespace-nowrap px-4 py-3 text-slate-400">{formatDate(document.expiry_date)}</td><td className="whitespace-nowrap px-4 py-3 text-slate-400">{formatDate(document.created_at || document.last_updated)}</td><td className="whitespace-nowrap px-4 py-3"><ExpiryBadge date={document.expiry_date} /></td><td className="whitespace-nowrap px-4 py-3"><FileActions url={document.file_url} /></td><td className="whitespace-nowrap px-4 py-3">{canEdit && <Button variant="secondary" onClick={() => onEdit(document)}><Edit2 className="h-4 w-4" /></Button>}</td></tr>)}</tbody></table>;
+function DocumentsTable({
+  documents,
+  contracts,
+  onEdit,
+  onDelete,
+  onEditContract,
+  canEdit,
+  deletePending,
+}: {
+  documents: SupplierDocument[];
+  contracts: Contract[];
+  onEdit: (document: SupplierDocument) => void;
+  onDelete: (document: SupplierDocument) => void;
+  onEditContract: (contract: Contract) => void;
+  canEdit: boolean;
+  deletePending: boolean;
+}) {
+  if (documents.length === 0 && contracts.length === 0) return <EmptyState title="لا توجد مستندات لهذا المورد" />;
+  return (
+    <table className="min-w-[1000px] text-right text-sm">
+      <thead className="bg-[#252B3A] text-[#B8C1DD]">
+        <tr>{["نوع الملف", "تاريخ الانتهاء", "تاريخ الإصدار / الرفع", "الحالة", "الملف", "الإجراءات"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
+      </thead>
+      <tbody className="divide-y divide-[#30364A]">
+        {documents.map((document) => (
+          <tr key={`document-${document.id}`}>
+            <td className="whitespace-nowrap px-4 py-3 font-bold text-white">{documentTypeLabel(document.type)}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-slate-400">{formatDate(document.expiry_date)}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-slate-400">{formatDate(document.issue_date || document.last_updated || document.created_at)}</td>
+            <td className="whitespace-nowrap px-4 py-3"><ExpiryBadge date={document.expiry_date} /></td>
+            <td className="whitespace-nowrap px-4 py-3"><FileActions url={document.file_url} /></td>
+            <td className="whitespace-nowrap px-4 py-3">
+              {canEdit && (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" onClick={() => onEdit(document)}><Edit2 className="h-4 w-4" /></Button>
+                  <Button variant="danger" onClick={() => onDelete(document)} disabled={deletePending}><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              )}
+            </td>
+          </tr>
+        ))}
+        {contracts.map((contract) => (
+          <tr key={`contract-${contract.id}`}>
+            <td className="whitespace-nowrap px-4 py-3 font-bold text-white">عقد: {contract.contract_number}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-slate-400">{formatDate(contract.end_date)}</td>
+            <td className="whitespace-nowrap px-4 py-3 text-slate-400">{formatDate(contract.start_date)}</td>
+            <td className="whitespace-nowrap px-4 py-3"><ExpiryBadge date={contract.end_date} /></td>
+            <td className="whitespace-nowrap px-4 py-3"><FileActions url={contract.file_url} /></td>
+            <td className="whitespace-nowrap px-4 py-3">{canEdit && <Button variant="secondary" onClick={() => onEditContract(contract)}><Edit2 className="h-4 w-4" /></Button>}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 function ContractsTable({ contracts, onEdit, canEdit }: { contracts: Contract[]; onEdit: (contract: Contract) => void; canEdit: boolean }) {
@@ -390,7 +490,21 @@ function ContactModal({ supplierId, contact, onClose }: { supplierId: string; co
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: contact?.name || "", position: contact?.position || "", email: contact?.email || "", phone: contact?.phone || "", whatsapp: contact?.whatsapp || "", is_primary: Boolean(contact?.is_primary) });
   const mutation = useMutation({ mutationFn: () => contact ? updateContact(contact.id, form) : createContact(supplierId, form), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["supplier", supplierId, "contacts"] }); onClose(); } });
-  return <Modal title={contact ? "تعديل جهة اتصال" : "إضافة جهة اتصال"} onClose={onClose}><form className="space-y-4" onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}><div className="grid gap-4 md:grid-cols-2"><Field label="الاسم" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Field><Field label="المنصب"><Input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} /></Field><Field label="البريد الإلكتروني"><Input dir="ltr" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field><Field label="رقم الجوال"><Input dir="ltr" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field></div><label className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" checked={form.is_primary} onChange={(e) => setForm({ ...form, is_primary: e.target.checked })} /> جهة تواصل أساسية</label><div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose} type="button">إلغاء</Button><Button disabled={mutation.isPending} type="submit">حفظ</Button></div></form></Modal>;
+  return (
+    <Modal title={contact ? "تعديل جهة اتصال" : "إضافة جهة اتصال"} onClose={onClose}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="الاسم" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Field>
+          <Field label="المنصب"><Input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} /></Field>
+          <Field label="البريد الإلكتروني"><Input dir="ltr" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+          <Field label="رقم الجوال"><PhoneNumberInput value={form.phone} onChange={(phone) => setForm({ ...form, phone })} /></Field>
+          <Field label="واتساب"><PhoneNumberInput value={form.whatsapp} onChange={(whatsapp) => setForm({ ...form, whatsapp })} /></Field>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-200"><input type="checkbox" checked={form.is_primary} onChange={(e) => setForm({ ...form, is_primary: e.target.checked })} /> جهة تواصل أساسية</label>
+        <div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose} type="button">إلغاء</Button><Button disabled={mutation.isPending} type="submit">حفظ</Button></div>
+      </form>
+    </Modal>
+  );
 }
 
 function ContractModal({ supplierId, contract, onClose }: { supplierId: string; contract?: Contract | null; onClose: () => void }) {
@@ -409,10 +523,17 @@ function DocumentModal({ supplierId, document, onClose }: { supplierId: string; 
   const { setMessage } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ type: document?.type || "CR", expiry_date: formatDate(document?.expiry_date) === "-" ? "" : formatDate(document?.expiry_date), last_updated: formatDate(document?.last_updated) === "-" ? "" : formatDate(document?.last_updated) });
+  const [form, setForm] = useState({ type: document?.type || "CR", expiry_date: formatDate(document?.expiry_date) === "-" ? "" : formatDate(document?.expiry_date), last_updated: formatDate(document?.issue_date || document?.last_updated) === "-" ? "" : formatDate(document?.issue_date || document?.last_updated) });
   const mutation = useMutation({ mutationFn: () => document ? updateDocument(document.id, form, file) : createDocument(supplierId, form, file), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["supplier", supplierId, "documents"] }); setMessage("تم حفظ المستند بنجاح"); onClose(); }, onError: () => { setError("فشل رفع الملف"); setMessage("فشل رفع الملف"); } });
-  function submit(event: FormEvent) { event.preventDefault(); const err = fileValidation(file); if (err) return setError(err); if (!document && !file) return setError("الملف مطلوب"); mutation.mutate(); }
-  return <Modal title={document ? "تعديل مستند" : "رفع مستند"} onClose={onClose}><form className="space-y-4" onSubmit={submit}>{error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-rose-200">{error}</div>}<div className="grid gap-4 md:grid-cols-2"><Field label="نوع المستند" required><Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as SupplierDocument["type"] })}>{documentTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field><Field label="تاريخ الانتهاء"><Input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} /></Field><Field label="تاريخ الإصدار / التحديث"><Input type="date" value={form.last_updated} onChange={(e) => setForm({ ...form, last_updated: e.target.value })} /></Field><Field label="ملف المستند"><Input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] || null)} />{file && <p className="mt-2 text-xs text-slate-400">{file.name}</p>}</Field></div><div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose} type="button">إلغاء</Button><Button disabled={mutation.isPending} type="submit">{mutation.isPending ? "جاري الرفع..." : "حفظ"}</Button></div></form></Modal>;
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const err = fileValidation(file);
+    if (err) return setError(err);
+    if (!form.expiry_date) return setError("تاريخ انتهاء المستند مطلوب");
+    if (!document && !file) return setError("الملف مطلوب");
+    mutation.mutate();
+  }
+  return <Modal title={document ? "تعديل مستند" : "رفع مستند"} onClose={onClose}><form className="space-y-4" onSubmit={submit}>{error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-rose-200">{error}</div>}<div className="grid gap-4 md:grid-cols-2"><Field label="نوع المستند" required><Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as SupplierDocument["type"] })}>{documentTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field><Field label="تاريخ الانتهاء" required><Input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} required /></Field><Field label="تاريخ الإصدار"><Input type="date" value={form.last_updated} onChange={(e) => setForm({ ...form, last_updated: e.target.value })} /></Field><Field label="ملف المستند"><Input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] || null)} />{file && <p className="mt-2 text-xs text-slate-400">{file.name}</p>}</Field></div><div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose} type="button">إلغاء</Button><Button disabled={mutation.isPending} type="submit">{mutation.isPending ? "جاري الرفع..." : "حفظ"}</Button></div></form></Modal>;
 }
 
 function PerformanceModal({ supplierId, performance, onClose }: { supplierId: string; performance?: SupplierPerformance | null; onClose: () => void }) {

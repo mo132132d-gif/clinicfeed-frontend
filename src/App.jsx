@@ -325,8 +325,8 @@ function ClinicFeedLogo({ variant = "desktop" }) {
       className={cx(
         "block w-auto object-contain",
         variant === "mobile"
-          ? "h-10 max-h-[44px] max-w-[140px]"
-          : "h-12 max-h-[52px] max-w-[170px]",
+          ? "sidebar-logo-img logo-needs-crop h-16 w-[190px] object-cover object-center"
+          : "login-logo-img logo-needs-crop h-24 w-[280px] object-cover object-center",
       )}
     />
   )
@@ -894,7 +894,7 @@ export default function App() {
         <div className="flex min-h-screen items-center justify-center p-6">
           <Card className="w-full max-w-md p-6">
             <div className="mb-6">
-              <ClinicFeedLogo variant="desktop" />
+              <ClinicFeedLogo variant="login" />
               <h1 className="mt-2 text-2xl font-bold">نظام إدارة الموردين</h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">تسجيل الدخول للوحة الداخلية</p>
             </div>
@@ -921,7 +921,7 @@ export default function App() {
       <div className="min-h-screen lg:pr-64 lg:before:fixed lg:before:right-0 lg:before:top-0 lg:before:bottom-0 lg:before:z-0 lg:before:w-64 lg:before:bg-slate-900">
         <aside className="relative z-40 min-h-screen border-b border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:fixed lg:right-0 lg:top-0 lg:bottom-0 lg:h-screen lg:w-64 lg:border-b-0 lg:border-l lg:p-5">
           <div className="mb-5 flex flex-col items-start">
-            <ClinicFeedLogo variant="desktop" />
+            <ClinicFeedLogo variant="mobile" />
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">إدارة الموردين والمستندات</p>
           </div>
           <nav className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-1">

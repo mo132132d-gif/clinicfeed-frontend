@@ -1,5 +1,6 @@
 ﻿import { apiRequest } from "./api";
 import { normalizeList, unwrapData } from "../lib/format";
+import { normalizeSaudiMobileNumber } from "../lib/phone";
 import type { ActivityLog, Contact, Contract, Supplier, SupplierDocument, SupplierPerformance } from "../types";
 
 export async function listSuppliers() {
@@ -65,7 +66,12 @@ export async function listContacts(supplierId: string) {
 export async function createContact(supplierId: string, data: Partial<Contact>) {
   const payload = await apiRequest<{ data: Contact }>("/contacts", {
     method: "POST",
-    body: JSON.stringify({ ...data, supplier_id: supplierId }),
+    body: JSON.stringify({
+      ...data,
+      supplier_id: supplierId,
+      phone: data.phone ? normalizeSaudiMobileNumber(data.phone) : data.phone,
+      whatsapp: data.whatsapp ? normalizeSaudiMobileNumber(data.whatsapp) : data.whatsapp,
+    }),
   });
   return unwrapData<Contact>(payload);
 }
@@ -73,7 +79,11 @@ export async function createContact(supplierId: string, data: Partial<Contact>) 
 export async function updateContact(id: string, data: Partial<Contact>) {
   const payload = await apiRequest<{ data: Contact }>(`/contacts/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      phone: data.phone ? normalizeSaudiMobileNumber(data.phone) : data.phone,
+      whatsapp: data.whatsapp ? normalizeSaudiMobileNumber(data.whatsapp) : data.whatsapp,
+    }),
   });
   return unwrapData<Contact>(payload);
 }
@@ -138,6 +148,30 @@ export async function listDocuments(supplierId: string) {
   return normalizeList<SupplierDocument>(payload);
 }
 
+export async function listAllDocuments() {
+  const chunkSize = 500;
+  const all: SupplierDocument[] = [];
+  let offset = 0;
+
+  while (true) {
+    const payload = await apiRequest<{ data?: unknown; meta?: { total?: number } }>(
+      `/documents?limit=${chunkSize}&offset=${offset}`
+    );
+    const page = normalizeList<SupplierDocument>(payload);
+    const total = payload.meta?.total;
+
+    all.push(...page);
+
+    if (page.length === 0) break;
+    if (typeof total === "number" && all.length >= total) break;
+    if (page.length < chunkSize) break;
+
+    offset += page.length;
+  }
+
+  return all;
+}
+
 export async function createDocument(supplierId: string, data: Partial<SupplierDocument>, file?: File | null) {
   if (file) {
     const form = new FormData();
@@ -173,6 +207,10 @@ export async function updateDocument(id: string, data: Partial<SupplierDocument>
     return unwrapData<SupplierDocument>(uploaded);
   }
   return document;
+}
+
+export async function deleteDocument(id: string) {
+  return apiRequest<{ data: SupplierDocument }>(`/documents/${id}`, { method: "DELETE" });
 }
 
 export async function listSupplierActivity(supplierId: string) {

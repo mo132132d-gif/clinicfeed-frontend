@@ -1,11 +1,12 @@
 ﻿import { useMemo, useState } from "react";
+import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw, Search, Upload } from "lucide-react";
 import { categoryOptions, supplierStatuses } from "../../lib/constants";
-import { formatDate, parseCategories } from "../../lib/format";
+import { expiryState, formatDate, parseCategories } from "../../lib/format";
 import { canCreateSupplier } from "../../lib/permissions";
-import { importSuppliers, listSuppliers, previewSupplierImport } from "../../services/supplierService";
+import { importSuppliers, listAllDocuments, listSuppliers, previewSupplierImport } from "../../services/supplierService";
 import { useAuth } from "../auth/AuthProvider";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import type { Supplier } from "../../types";
@@ -26,7 +27,9 @@ export function SuppliersPage() {
   const debouncedSearch = useDebouncedValue(search, 250);
 
   const suppliersQuery = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers, staleTime: 60_000 });
+  const documentsQuery = useQuery({ queryKey: ["documents", "all"], queryFn: listAllDocuments, staleTime: 60_000 });
   const suppliers = suppliersQuery.data || [];
+  const documents = documentsQuery.data || [];
 
   const previewMutation = useMutation({
     mutationFn: previewSupplierImport,
@@ -126,6 +129,36 @@ export function SuppliersPage() {
   const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
   const hasRows = rows.length > 0;
 
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const documentRiskBySupplier = useMemo(() => {
+    const importantTypes = new Set(["CR", "VAT", "Authorization", "Price List"]);
+    const risk = new Map<string, "danger" | "warning">();
+
+    for (const document of documents) {
+      if (!importantTypes.has(document.type)) continue;
+      const state = expiryState(document.expiry_date);
+      if (state.tone === "danger") {
+        risk.set(document.supplier_id, "danger");
+      } else if (state.tone === "warning" && risk.get(document.supplier_id) !== "danger") {
+        risk.set(document.supplier_id, "warning");
+      }
+    }
+
+    return risk;
+  }, [documents]);
+
+  async function refreshSuppliers() {
+    try {
+      await Promise.all([suppliersQuery.refetch(), documentsQuery.refetch()]);
+      setMessage("تم تحديث بيانات الموردين");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "فشل تحديث بيانات الموردين");
+    }
+  }
+
   return (
     <div className="space-y-6">
       {editing !== undefined && <SupplierFormModal supplier={editing || null} onClose={() => setEditing(undefined)} />}
@@ -174,9 +207,9 @@ export function SuppliersPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })}>
-              <RefreshCw className="h-4 w-4" />
-              تحديث
+            <Button variant="secondary" onClick={refreshSuppliers} disabled={suppliersQuery.isFetching || documentsQuery.isFetching}>
+              <RefreshCw className={`h-4 w-4 ${(suppliersQuery.isFetching || documentsQuery.isFetching) ? "animate-spin" : ""}`} />
+              {(suppliersQuery.isFetching || documentsQuery.isFetching) ? "جاري التحديث..." : "تحديث"}
             </Button>
 
             {canCreateSupplier(user?.role) && (
@@ -223,24 +256,34 @@ export function SuppliersPage() {
             <Link
               key={supplier.id}
               to={`/suppliers/${supplier.id}`}
-              className="rounded-xl border border-slate-800 bg-[#111827] p-4 shadow-sm transition hover:border-blue-700"
+              className="rounded-2xl border border-[#373E55] bg-[#292F40] p-4 shadow-[0_12px_32px_rgba(10,14,25,0.20)] transition hover:-translate-y-0.5 hover:border-[#556EE6]/50 hover:bg-[#343B52]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="truncate text-base font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</h2>
-                  {supplier.name_en && <p className="mt-1 truncate text-xs text-slate-500" dir="ltr">{supplier.name_en}</p>}
+                  {supplier.name_en && <p className="mt-1 truncate text-xs text-[#8F99B8]" dir="ltr">{supplier.name_en}</p>}
                 </div>
                 <StatusBadge status={supplier.status} />
               </div>
 
+              {documentRiskBySupplier.get(supplier.id) && (
+                <div className={`mt-3 rounded-lg border px-3 py-2 text-xs font-bold ${
+                  documentRiskBySupplier.get(supplier.id) === "danger"
+                    ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                }`}>
+                  {documentRiskBySupplier.get(supplier.id) === "danger" ? "تنبيه: مستند مهم منتهي" : "تنبيه: مستند مهم ينتهي قريبًا"}
+                </div>
+              )}
+
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-xs font-bold text-slate-500">التقييم</p>
-                  <p className="mt-1 font-black text-slate-100">{supplierRating(supplier)}</p>
+                  <p className="text-xs font-bold text-[#8F99B8]">التقييم</p>
+                  <p className="mt-1 font-black text-[#F3F6F9]">{supplierRating(supplier)}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-500">آخر تحديث</p>
-                  <p className="mt-1 font-black text-slate-100">{formatDate(supplier.updated_at || supplier.created_at)}</p>
+                  <p className="text-xs font-bold text-[#8F99B8]">آخر تحديث</p>
+                  <p className="mt-1 font-black text-[#F3F6F9]">{formatDate(supplier.updated_at || supplier.created_at)}</p>
                 </div>
               </div>
             </Link>
@@ -248,7 +291,19 @@ export function SuppliersPage() {
         </div>
       )}
 
-      <Card className={hasRows ? "hidden overflow-hidden md:block" : "overflow-hidden"}>
+      {!hasRows && (
+        <Card className="overflow-hidden md:hidden">
+          {suppliersQuery.isLoading ? (
+            <LoadingState label="جاري تحميل الموردين..." />
+          ) : suppliersQuery.error ? (
+            <EmptyState title="فشل تحميل الموردين" subtitle="تحقق من اتصال الخادم ثم حاول مرة أخرى." />
+          ) : (
+            <EmptyState title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات موردين"} />
+          )}
+        </Card>
+      )}
+
+      <Card className="hidden overflow-hidden md:block">
         {suppliersQuery.isLoading ? (
           <LoadingState label="جاري تحميل الموردين..." />
         ) : suppliersQuery.error ? (
@@ -257,31 +312,31 @@ export function SuppliersPage() {
           <EmptyState title={suppliers.length ? "لا توجد نتائج مطابقة" : "لا توجد بيانات موردين"} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed bg-slate-950 text-right text-sm">
-              <thead className="bg-[#050B18] text-slate-300">
+            <table className="w-full table-fixed bg-[#292F40] text-right text-sm">
+              <thead className="bg-[#252B3A] text-[#B8C1DD]">
                 <tr>
                   <th className="w-[30%] px-4 py-4 font-black text-right">اسم المورد</th>
                   <th className="w-[14%] px-4 py-4 font-black text-center">المدينة</th>
                   <th className="w-[14%] px-4 py-4 font-black text-center">الحالة</th>
                   <th className="w-[14%] px-4 py-4 font-black text-center">آخر تحديث</th>
                   <th className="w-[10%] px-4 py-4 font-black text-center">التقييم</th>
-                  <th className="w-[18%] px-4 py-4 font-black text-center">التصنيفات</th>
+                  <th className="w-[18%] px-4 py-4 font-black text-center">التنبيهات</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-800 bg-slate-950">
+              <tbody className="divide-y divide-[#30364A] bg-[#292F40]">
                 {rows.map((supplier) => (
                   <tr
                     key={supplier.id}
                     onClick={() => { window.location.href = `/suppliers/${supplier.id}`; }}
-                    className="group cursor-pointer bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70"
+                    className="group cursor-pointer bg-[#292F40] hover:bg-[#343B52] [&>td]:transition-colors [&>td]:group-hover:bg-[#343B52]"
                   >
                     <td className="px-4 py-4">
                       <p className="truncate font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</p>
-                      <p className="truncate text-xs text-slate-500" dir="ltr">{supplier.name_en || "-"}</p>
+                      <p className="truncate text-xs text-[#8F99B8]" dir="ltr">{supplier.name_en || "-"}</p>
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-4 text-center text-slate-300">
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-[#B8C1DD]">
                       {supplier.city || "-"}
                     </td>
 
@@ -289,28 +344,36 @@ export function SuppliersPage() {
                       <StatusBadge status={supplier.status} />
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-4 text-center text-slate-300">
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-[#B8C1DD]">
                       {formatDate(supplier.updated_at || supplier.created_at)}
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-4 text-center text-slate-300">
+                    <td className="whitespace-nowrap px-4 py-4 text-center text-[#B8C1DD]">
                       {(() => {
                         const rating = (supplier as Record<string, unknown>).rating || (supplier as Record<string, unknown>).score;
                         return rating ? String(rating) : "-";
                       })()}
                     </td>
 
-                    <td className="px-4 py-4 text-center text-slate-300">
-                      {parseCategories(supplier.category).length ? (
+                    <td className="px-4 py-4 text-center text-[#B8C1DD]">
+                      {documentRiskBySupplier.get(supplier.id) ? (
+                        <span className={`rounded-full border px-2 py-1 text-xs font-bold ${
+                          documentRiskBySupplier.get(supplier.id) === "danger"
+                            ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                            : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                        }`}>
+                          {documentRiskBySupplier.get(supplier.id) === "danger" ? "مستند منتهي" : "قريب الانتهاء"}
+                        </span>
+                      ) : parseCategories(supplier.category).length ? (
                         <div className="flex flex-wrap justify-center gap-1">
                           {parseCategories(supplier.category).slice(0, 2).map((category) => (
-                            <span key={category} className="rounded-full border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-200">
+                            <span key={category} className="rounded-full border border-[#373E55] bg-[#242A39] px-2 py-1 text-xs text-[#B8C1DD]">
                               {category}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-slate-600">-</span>
+                        <span className="text-[#8F99B8]">-</span>
                       )}
                     </td>
                   </tr>
@@ -320,7 +383,7 @@ export function SuppliersPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-slate-800 px-3 py-4 text-sm text-slate-400">
+        <div className="flex items-center justify-between border-t border-[#30364A] px-3 py-4 text-sm text-[#8F99B8]">
           <span>عرض {rows.length} من {filtered.length}</span>
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
@@ -335,7 +398,7 @@ export function SuppliersPage() {
       </Card>
 
       {hasRows && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-[#111827] px-4 py-3 text-sm text-slate-400 md:hidden">
+        <div className="flex items-center justify-between rounded-2xl border border-[#373E55] bg-[#292F40] px-4 py-3 text-sm text-[#8F99B8] shadow-[0_12px_32px_rgba(10,14,25,0.18)] md:hidden">
           <span>عرض {rows.length} من {filtered.length}</span>
           <div className="flex items-center gap-2">
             <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>

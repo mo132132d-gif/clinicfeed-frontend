@@ -75,6 +75,7 @@ export interface SupplierDocument {
   type: DocumentType;
   file_url?: string | null;
   expiry_date?: string | null;
+  issue_date?: string | null;
   last_updated?: string | null;
   file_name?: string | null;
   file_mime_type?: string | null;
@@ -82,6 +83,18 @@ export interface SupplierDocument {
   file_path?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface RequestTicketAttachment {
+  id: string;
+  ticket_id?: string | null;
+  attachment_type?: string | null;
+  file_name?: string | null;
+  file_url?: string | null;
+  file_path?: string | null;
+  file_mime_type?: string | null;
+  file_size?: number | string | null;
+  created_at?: string | null;
 }
 
 export interface ActivityLog {
@@ -157,6 +170,8 @@ export interface RequestTicket {
   order_amount?: number | string | null;
   vat_amount?: number | string | null;
   total_amount?: number | string | null;
+  attachments?: RequestTicketAttachment[];
+  documents?: RequestTicketAttachment[];
   qr_code?: string | null;
   created_at?: string | null;
   updated_at?: string | null;

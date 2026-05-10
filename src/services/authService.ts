@@ -1,5 +1,6 @@
 import { apiRequest, clearStoredToken } from "./api";
 import { unwrapData } from "../lib/format";
+import { normalizeSaudiMobileNumber } from "../lib/phone";
 import type { User } from "../types";
 
 export async function login(email: string, password: string) {
@@ -20,7 +21,10 @@ export async function getMe() {
 export async function updateMyAccount(data: Pick<User, "name" | "email" | "phone">) {
   const payload = await apiRequest<{ data: User }>("/account", {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      phone: data.phone ? normalizeSaudiMobileNumber(data.phone) : data.phone,
+    }),
   });
   return unwrapData<User>(payload);
 }

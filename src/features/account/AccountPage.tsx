@@ -4,6 +4,7 @@ import { roleLabels } from "../../lib/constants";
 import { changeMyPassword, updateMyAccount } from "../../services/authService";
 import { useAuth } from "../auth/AuthProvider";
 import { Button, Card, Field, Input } from "../../components/shared/Primitives";
+import { PhoneNumberInput } from "../../components/shared/PhoneNumberInput";
 
 export function AccountPage() {
   const { user, refreshUser, setMessage } = useAuth();
@@ -51,7 +52,7 @@ export function AccountPage() {
         <form onSubmit={saveProfile} className="mt-5 space-y-4">
           <Field label="الاسم"><Input value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} /></Field>
           <Field label="البريد الإلكتروني"><Input dir="ltr" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} /></Field>
-          <Field label="رقم الجوال"><Input dir="ltr" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} /></Field>
+          <Field label="رقم الجوال"><PhoneNumberInput value={profile.phone} onChange={(phone) => setProfile({ ...profile, phone })} /></Field>
           <Field label="الدور"><Input value={roleLabels[user?.role || "viewer"]} disabled /></Field>
           <Button type="submit" disabled={profileMutation.isPending}>حفظ البيانات</Button>
         </form>

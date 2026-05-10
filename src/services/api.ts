@@ -12,6 +12,22 @@ export class ApiError extends Error {
   }
 }
 
+export function mapApiErrorMessage(status: number, fallback = "", path = "") {
+  const lower = fallback.toLowerCase();
+
+  if (path.includes("/auth/login") && status === 401) return "اسم المستخدم أو كلمة المرور غير صحيحة";
+  if (status === 401 && (lower.includes("invalid") || lower.includes("credentials") || lower.includes("password"))) {
+    return "اسم المستخدم أو كلمة المرور غير صحيحة";
+  }
+  if (status === 401) return "انتهت الجلسة أو يلزم تسجيل الدخول";
+  if (status === 403 || lower.includes("permission") || lower.includes("forbidden")) return "ليست لديك صلاحية لتنفيذ هذا الإجراء";
+  if (status === 404 || lower.includes("route not found") || lower.includes("not found")) return "الميزة المطلوبة غير متاحة أو مسار الخدمة غير موجود";
+  if (status >= 500) return "حدث خطأ في الخادم، حاول مرة أخرى لاحقًا";
+  if (status === 0) return "تعذر الاتصال بالخادم";
+
+  return fallback || "تعذر تنفيذ العملية";
+}
+
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_KEY) || LEGACY_TOKEN_KEYS.map((key) => localStorage.getItem(key)).find(Boolean) || "";
 }
@@ -28,7 +44,7 @@ export function clearStoredToken() {
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!API_URL) {
-    throw new ApiError("VITE_API_URL غير مهيأ لبيئة الإنتاج", 0);
+    throw new ApiError("رابط الخادم غير مهيأ للبيئة الحالية", 0);
   }
 
   const token = getStoredToken();
@@ -45,7 +61,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   try {
     response = await fetch(`${API_URL}${path}`, { ...options, headers });
   } catch {
-    throw new ApiError("تعذر الاتصال بالخادم", 0);
+    throw new ApiError(mapApiErrorMessage(0), 0);
   }
 
   const text = await response.text();
@@ -58,15 +74,15 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     }
   }
 
-  if (response.status === 401) {
+  if (response.status === 401 && !path.includes("/auth/login")) {
     clearStoredToken();
     window.dispatchEvent(new CustomEvent("clinicfeed:unauthorized"));
-    throw new ApiError("انتهت الجلسة، الرجاء تسجيل الدخول مرة أخرى", 401);
   }
 
   if (!response.ok) {
     const errorPayload = payload as { error?: { message?: string }; message?: string };
-    throw new ApiError(errorPayload?.error?.message || errorPayload?.message || "فشل تنفيذ العملية", response.status);
+    const backendMessage = errorPayload?.error?.message || errorPayload?.message || "";
+    throw new ApiError(mapApiErrorMessage(response.status, backendMessage, path), response.status);
   }
 
   return payload as T;

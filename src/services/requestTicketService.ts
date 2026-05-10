@@ -1,5 +1,6 @@
-import { apiRequest, API_URL, ApiError, getStoredToken } from "./api";
+import { apiRequest, API_URL, ApiError, getStoredToken, mapApiErrorMessage } from "./api";
 import { normalizeList, unwrapData } from "../lib/format";
+import { normalizeSaudiMobileNumber } from "../lib/phone";
 import { normalizeRequestTicketStatus } from "../lib/requestTicketStatus";
 import type { RequestTicket, RequestTicketsSummary } from "../types";
 
@@ -44,7 +45,7 @@ function requestTicketCreatePayload(data: Partial<RequestTicket>) {
 
   return compactPayload({
     customer_name: normalized.customer_name,
-    phone: normalized.phone,
+    phone: normalized.phone ? normalizeSaudiMobileNumber(normalized.phone) : normalized.phone,
     email: normalized.email,
     country: normalized.country,
     region: normalized.region,
@@ -67,7 +68,7 @@ function requestTicketUpdatePayload(data: Partial<RequestTicket>) {
 
   return compactPayload({
     customer_name: normalized.customer_name,
-    phone: normalized.phone,
+    phone: normalized.phone ? normalizeSaudiMobileNumber(normalized.phone) : normalized.phone,
     email: normalized.email,
     country: normalized.country,
     region: normalized.region,
@@ -134,7 +135,7 @@ export async function getDashboardRequestTicketsSummary() {
 
 export async function exportRequestTickets(params?: RequestTicketParams) {
   if (!API_URL) {
-    throw new ApiError("VITE_API_URL غير مهيأ لبيئة الإنتاج", 0);
+    throw new ApiError("رابط الخادم غير مهيأ للبيئة الحالية", 0);
   }
 
   const query = new URLSearchParams();
@@ -149,22 +150,18 @@ export async function exportRequestTickets(params?: RequestTicketParams) {
   try {
     response = await fetch(`${API_URL}/request-tickets/export${qs}`, { headers });
   } catch {
-    throw new ApiError("تعذر الاتصال بالخادم", 0);
-  }
-
-  if (response.status === 401) {
-    throw new ApiError("انتهت الجلسة، الرجاء تسجيل الدخول مرة أخرى", 401);
+    throw new ApiError(mapApiErrorMessage(0), 0);
   }
 
   if (!response.ok) {
-    let message = "فشل تصدير البيانات";
+    let message = "";
     try {
       const payload = await response.json();
-      message = payload?.error?.message || payload?.message || message;
+      message = payload?.error?.message || payload?.message || "";
     } catch {
-      message = response.statusText || message;
+      message = response.statusText || "";
     }
-    throw new ApiError(message, response.status);
+    throw new ApiError(mapApiErrorMessage(response.status, message, "/request-tickets/export"), response.status);
   }
 
   const blob = await response.blob();
@@ -173,4 +170,20 @@ export async function exportRequestTickets(params?: RequestTicketParams) {
   const filename = filenameMatch?.[1] ? decodeURIComponent(filenameMatch[1]) : "request-tickets.xlsx";
 
   return { blob, filename };
+}
+
+export async function uploadRequestTicketAttachment(
+  id: string,
+  payload: { file: File; attachment_type?: string },
+) {
+  const form = new FormData();
+  form.append("file", payload.file);
+  form.append("attachment_type", payload.attachment_type || "Other");
+
+  const response = await apiRequest<{ data: unknown }>(`/request-tickets/${id}/attachments/upload`, {
+    method: "POST",
+    body: form,
+  });
+
+  return response.data;
 }

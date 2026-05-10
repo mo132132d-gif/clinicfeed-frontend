@@ -9,6 +9,7 @@ import { createUser, listUsers, resetUserPassword, setUserStatus, updateUser, ty
 import { useAuth } from "../auth/AuthProvider";
 import type { Role, User } from "../../types";
 import { Button, Card, EmptyState, Field, Input, LoadingState, Modal, Select } from "../../components/shared/Primitives";
+import { PhoneNumberInput } from "../../components/shared/PhoneNumberInput";
 
 const roles: Role[] = ["admin", "manager", "operations", "sales", "viewer"];
 
@@ -47,7 +48,8 @@ export function UsersPage() {
       <Card className="p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative max-w-md flex-1">
-            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F99B8]" />
+
             <Input className="pr-9" placeholder="بحث باسم المستخدم أو البريد أو الدور" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
           <Button onClick={() => setEditing(null)}><Plus className="h-4 w-4" />إنشاء مستخدم جديد</Button>
@@ -61,13 +63,15 @@ export function UsersPage() {
               {(usersQuery.data || []).map((employee) => (
                 <Card
                   key={employee.id}
-                  className="cursor-pointer p-4 transition hover:bg-slate-900/70"
+                  className="cursor-pointer p-4 transition hover:-translate-y-0.5 hover:bg-[#343B52]"
+
                   onClick={() => setEditing(employee)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-base font-black text-white">{employee.name}</p>
-                      <p className="mt-1 truncate text-sm text-slate-400" dir="ltr">{employee.email}</p>
+                      <p className="mt-1 truncate text-sm text-[#B8C1DD]" dir="ltr">{employee.email}</p>
+
                     </div>
                     <span className={`rounded-full border px-3 py-1 text-xs font-black ${employee.is_active ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-200" : "border-rose-500/30 bg-rose-500/15 text-rose-200"}`}>
                       {employee.is_active ? "مفعّل" : "معطّل"}
@@ -76,16 +80,19 @@ export function UsersPage() {
 
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <p className="text-xs font-bold text-slate-500">الدور</p>
-                      <p className="mt-1 font-black text-slate-100">{roleLabels[employee.role]}</p>
+                      <p className="text-xs font-bold text-[#8F99B8]">الدور</p>
+                      <p className="mt-1 font-black text-[#F3F6F9]">{roleLabels[employee.role]}</p>
+
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-500">الجوال</p>
-                      <p className="mt-1 font-black text-slate-100" dir="ltr">{employee.phone || "-"}</p>
+                      <p className="text-xs font-bold text-[#8F99B8]">الجوال</p>
+                      <p className="mt-1 font-black text-[#F3F6F9]" dir="ltr">{employee.phone || "-"}</p>
+
                     </div>
                     <div className="col-span-2">
-                      <p className="text-xs font-bold text-slate-500">آخر دخول</p>
-                      <p className="mt-1 font-black text-slate-100">{formatDateTime(employee.last_login_at)}</p>
+                      <p className="text-xs font-bold text-[#8F99B8]">آخر دخول</p>
+                      <p className="mt-1 font-black text-[#F3F6F9]">{formatDateTime(employee.last_login_at)}</p>
+
                     </div>
                   </div>
                 </Card>
@@ -94,7 +101,8 @@ export function UsersPage() {
 
             <div className="hidden md:block">
               <table className="w-full table-fixed text-right text-sm">
-                <thead className="bg-slate-950 text-slate-400">
+                <thead className="bg-[#252B3A] text-[#B8C1DD]">
+
                   <tr>
                     <th className="w-[22%] px-5 py-4 font-black">المستخدم</th>
                     <th className="w-[28%] px-5 py-4 font-black">البريد الإلكتروني</th>
@@ -104,23 +112,27 @@ export function UsersPage() {
                     <th className="w-[10%] px-5 py-4 font-black">آخر دخول</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-[#30364A]">
+
                   {(usersQuery.data || []).map((employee) => (
                     <tr
                       key={employee.id}
                       onClick={() => setEditing(employee)}
-                      className="cursor-pointer hover:bg-slate-900 [&>td]:transition-colors"
+                      className="cursor-pointer transition hover:bg-[#343B52] [&>td]:transition-colors"
+
                     >
                       <td className="truncate px-5 py-4 font-black text-white">{employee.name}</td>
-                      <td className="truncate px-5 py-4 text-slate-400" dir="ltr">{employee.email}</td>
-                      <td className="truncate px-5 py-4 text-slate-400" dir="ltr">{employee.phone || "-"}</td>
-                      <td className="truncate px-5 py-4 text-slate-300">{roleLabels[employee.role]}</td>
+                      <td className="truncate px-5 py-4 text-[#B8C1DD]" dir="ltr">{employee.email}</td>
+                      <td className="truncate px-5 py-4 text-[#B8C1DD]" dir="ltr">{employee.phone || "-"}</td>
+                      <td className="truncate px-5 py-4 text-[#B8C1DD]">{roleLabels[employee.role]}</td>
+
                       <td className="px-5 py-4">
                         <span className={`rounded-full border px-3 py-1 text-xs font-black ${employee.is_active ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-200" : "border-rose-500/30 bg-rose-500/15 text-rose-200"}`}>
                           {employee.is_active ? "مفعّل" : "معطّل"}
                         </span>
                       </td>
-                      <td className="truncate px-5 py-4 text-slate-400">{formatDateTime(employee.last_login_at)}</td>
+                      <td className="truncate px-5 py-4 text-[#B8C1DD]">{formatDateTime(employee.last_login_at)}</td>
+
                     </tr>
                   ))}
                 </tbody>
@@ -162,6 +174,8 @@ function UserModal({
         email: form.email,
         role: form.role as Role,
         is_active: form.is_active,
+        department_or_task: form.department_or_task || null,
+        phone: form.phone || null,
       };
       if (!user) payload.password = form.password;
       return user ? updateUser(user.id, payload) : createUser(payload);
@@ -189,7 +203,7 @@ function UserModal({
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="الاسم" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="البريد الإلكتروني" required><Input dir="ltr" type="email" disabled={Boolean(user)} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-          <Field label="رقم الجوال"><Input dir="ltr" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+          <Field label="رقم الجوال"><PhoneNumberInput value={form.phone} onChange={(phone) => setForm({ ...form, phone })} /></Field>
           <Field label="الدور" required><Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>{roles.map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</Select></Field>
           <Field label="القسم / المهمة"><Select value={form.department_or_task} onChange={(e) => setForm({ ...form, department_or_task: e.target.value })}>{departments.map((item) => <option key={item} value={item}>{item}</option>)}</Select></Field>
           <Field label="الحالة"><Select value={String(form.is_active)} onChange={(e) => setForm({ ...form, is_active: e.target.value === "true" })}><option value="true">مفعّل</option><option value="false">معطّل</option></Select></Field>

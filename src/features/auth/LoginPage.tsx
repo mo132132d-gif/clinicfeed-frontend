@@ -5,12 +5,11 @@ import { useAuth } from "./AuthProvider";
 
 function ClinicFeedLogo() {
   return (
-    <div className="flex h-24 w-80 items-center justify-center overflow-visible">
+    <div className="flex items-center justify-center bg-transparent">
       <img
         src="/clinicfeed-logo.png.svg"
         alt="ClinicFeed"
-        className="block h-16 w-auto max-w-none object-contain"
-        style={{ transform: "scale(4.2)", transformOrigin: "center" }}
+        className="login-logo-img logo-needs-crop h-24 w-[280px] object-cover object-center drop-shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
         draggable={false}
       />
     </div>
@@ -44,32 +43,32 @@ export function LoginPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#0F172A] text-white">
+    <main dir="rtl" className="min-h-screen overflow-x-hidden bg-[#171E2D] text-[#F4F7FB]">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="hidden border-l border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950/80 p-10 lg:flex lg:flex-col lg:justify-between">
-          <div className="flex items-center justify-start">
+        <section className="hidden border-l border-[#2F394F] bg-[radial-gradient(circle_at_18%_12%,rgba(91,115,232,0.18),transparent_34%),linear-gradient(145deg,#1D2435,#171E2D)] p-10 lg:flex lg:flex-col lg:justify-between">
+          <div className="login-reveal flex items-center justify-start">
             <ClinicFeedLogo />
           </div>
 
-          <div className="max-w-xl space-y-6">
-            <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
+          <div className="login-reveal max-w-xl space-y-6 [animation-delay:120ms]">
+            <span className="inline-flex rounded-full border border-[#34C38F]/30 bg-[#34C38F]/10 px-4 py-2 text-sm text-[#34C38F]">
               عمليات صحية ومشتريات أكثر وضوحًا
             </span>
 
             <h2 className="text-5xl font-black leading-tight">
-              لوحة تحكم مؤسسية لمتابعة الموردين، العقود، المستندات، ومؤشرات الأداء.
+              منصة تشغيلية موحدة لإدارة الموردين، المستندات، الطلبات، ومؤشرات الأداء بكفاءة أعلى.
             </h2>
 
-            <p className="text-lg leading-8 text-slate-300">
-              تسجيل دخول آمن، صلاحيات حسب الدور، وتنظيم كامل لملفات الموردين استعدادًا للعرض التشغيلي.
+            <p className="text-lg leading-8 text-[#C3CBE0]">
+              دخول آمن بصلاحيات مخصصة لكل دور، مع تنظيم مركزي للبيانات والملفات لتسهيل المتابعة واتخاذ القرار.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 text-sm text-slate-300">
+          <div className="login-reveal grid grid-cols-3 gap-4 text-sm text-[#C3CBE0] [animation-delay:220ms]">
             {["JWT", "Supabase", "RTL"].map((item) => (
               <div
                 key={item}
-                className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+                className="rounded-2xl border border-[#3A4560] bg-[#1E2638]/80 p-4"
               >
                 <ShieldCheck className="mb-3 h-5 w-5 text-emerald-400" />
                 {item}
@@ -82,7 +81,7 @@ export function LoginPage() {
           <form
             onSubmit={handleSubmit}
             autoComplete="off"
-            className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl shadow-slate-950/60 sm:p-8"
+            className="w-full max-w-md rounded-3xl border border-[#3A4560] bg-[#242C3F]/95 p-6 shadow-2xl shadow-black/40 sm:p-8"
           >
             <div className="mb-8 text-center">
               <div className="mx-auto mb-6 flex items-center justify-center">
@@ -90,7 +89,7 @@ export function LoginPage() {
               </div>
 
               <h2 className="text-3xl font-black">تسجيل الدخول</h2>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-[#8E9AB6]">
                 ادخل بيانات حسابك للوصول إلى لوحة الموردين.
               </p>
             </div>
@@ -107,7 +106,7 @@ export function LoginPage() {
               </span>
 
               <div className="relative">
-                <Mail className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                <Mail className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8E9AB6]" />
 
                 <input
                   dir="ltr"
@@ -115,7 +114,7 @@ export function LoginPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   autoComplete="off"
-                  className="h-12 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 pr-11 text-left text-white outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  className="h-12 w-full rounded-2xl border border-[#3A4560] bg-[#1E2638] px-4 pr-11 text-left text-[#F4F7FB] outline-none transition focus:border-[#5B73E8] focus:ring-4 focus:ring-[#5B73E8]/15"
                   required
                 />
               </div>
@@ -133,14 +132,14 @@ export function LoginPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   autoComplete="new-password"
-                  className="h-12 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 pl-11 text-left text-white outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  className="h-12 w-full rounded-2xl border border-[#3A4560] bg-[#1E2638] px-4 pl-11 text-left text-[#F4F7FB] outline-none transition focus:border-[#5B73E8] focus:ring-4 focus:ring-[#5B73E8]/15"
                   required
                 />
 
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
-                  className="absolute left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-800 hover:text-white"
+                  className="absolute left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#8E9AB6] transition hover:bg-[#323D56] hover:text-white"
                   aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
                 >
                   {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
@@ -151,7 +150,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="h-12 w-full rounded-2xl bg-blue-800 font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-12 w-full rounded-2xl bg-[#5B73E8] font-black text-white transition hover:bg-[#4F63D2] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "جاري التحقق..." : "دخول المنصة"}
             </button>

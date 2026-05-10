@@ -1,11 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { ChevronDown, Download, Edit2, Eye, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
-import type { RequestTicket, RequestTicketsSummary, Supplier } from "../../types";
+import { ChevronDown, Download, Edit2, Eye, Plus, RefreshCw, Search, Upload, Trash2, X } from "lucide-react";
+import type { RequestTicket, RequestTicketAttachment, RequestTicketsSummary, Supplier } from "../../types";
 import { useAuth } from "../auth/AuthProvider";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { formatCurrency, formatDate, formatNumber } from "../../lib/format";
 import { canManageSuppliers } from "../../lib/permissions";
+import { calculateVatAmount, formatDuration, ticketCycleMs, ticketDelayLabel, ticketDelayLevel } from "../../lib/ticketMetrics";
+import { API_URL } from "../../services/api";
 import {
   normalizeRequestTicketStatus,
   requestTicketStatusBadgeClass,
@@ -21,6 +23,7 @@ import {
   getRequestTicketsSummary,
   listRequestTickets,
   updateRequestTicket,
+  uploadRequestTicketAttachment,
   type RequestTicketParams,
 } from "../../services/requestTicketService";
 import {
@@ -34,6 +37,7 @@ import {
   Select,
   Textarea,
 } from "../../components/shared/Primitives";
+import { PhoneNumberInput } from "../../components/shared/PhoneNumberInput";
 
 const pageSize = 25;
 
@@ -71,6 +75,23 @@ function StatusBadge({ status }: { status?: string | null }) {
       {requestTicketStatusLabel(status)}
     </span>
   );
+}
+
+function TicketDelayBadge({ ticket }: { ticket: RequestTicket }) {
+  const level = ticketDelayLevel(ticket);
+  if (!level) return null;
+  const tone = level === "high"
+    ? "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-200"
+    : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-200";
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${tone}`}>{ticketDelayLabel(ticket)}</span>;
+}
+
+function TicketFollowUpBadge({ ticket }: { ticket: RequestTicket }) {
+  if (isCancelledTicket(ticket) || isExecutedTicket(ticket) || extractSupplierIds(ticket).length === 0) return null;
+  if (ticketStatus(ticket) === "waiting_supplier") {
+    return <span className="inline-flex rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-black text-blue-700">بانتظار المورد</span>;
+  }
+  return <span className="inline-flex rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-black text-amber-700">يحتاج متابعة</span>;
 }
 
 function emptyForm(): Partial<RequestTicket> {
@@ -126,10 +147,25 @@ function numberValue(value?: number | string | null) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function fileHref(url?: string | null) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  const base = API_URL.replace(/\/api\/?$/, "");
+  return `${base}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
 function optionalNumber(value?: number | string | null) {
   if (value === "" || value === null || value === undefined) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function percentFromVatAmount(base?: number | string | null, vat?: number | string | null) {
+  const baseAmount = numberValue(base);
+  const vatAmount = numberValue(vat);
+  if (baseAmount <= 0 || vatAmount <= 0) return vat || "";
+  const percent = (vatAmount / baseAmount) * 100;
+  return Number.isInteger(percent) ? String(percent) : percent.toFixed(2).replace(/\.?0+$/, "");
 }
 
 function summaryValue(summary: RequestTicketsSummary | undefined, keys: Array<keyof RequestTicketsSummary>) {
@@ -239,6 +275,19 @@ export function RequestTicketsPage() {
     queryFn: listSuppliers,
     staleTime: 60_000,
   });
+
+  async function refreshTickets() {
+    try {
+      await Promise.all([
+        ticketsQuery.refetch(),
+        summaryQuery.refetch(),
+        suppliersQuery.refetch(),
+      ]);
+      setMessage("تم تحديث تذاكر الطلبات");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "فشل تحديث تذاكر الطلبات");
+    }
+  }
 
   const exportMutation = useMutation({
     mutationFn: () => exportRequestTickets(params),
@@ -370,7 +419,7 @@ export function RequestTicketsPage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h1 className="text-2xl font-black text-white">تذاكر الطلبات</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-[#8F99B8]">
               إنشاء ومتابعة طلبات العملاء اليدوية قبل التنفيذ أو الإلغاء.
             </p>
           </div>
@@ -378,13 +427,11 @@ export function RequestTicketsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
-                queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
-              }}
+              onClick={refreshTickets}
+              disabled={ticketsQuery.isFetching || summaryQuery.isFetching || suppliersQuery.isFetching}
             >
-              <RefreshCw className="h-4 w-4" />
-              تحديث
+              <RefreshCw className={`h-4 w-4 ${(ticketsQuery.isFetching || summaryQuery.isFetching || suppliersQuery.isFetching) ? "animate-spin" : ""}`} />
+              {(ticketsQuery.isFetching || summaryQuery.isFetching || suppliersQuery.isFetching) ? "جاري التحديث..." : "تحديث"}
             </Button>
 
             <Button variant="secondary" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
@@ -410,16 +457,16 @@ export function RequestTicketsPage() {
         >
           <div>
             <h2 className="text-lg font-black text-white">ملخص تذاكر الطلبات</h2>
-            <p className="mt-1 text-sm text-slate-400">مؤشرات مالية وتشغيلية مجمعة من تذاكر الطلبات.</p>
+            <p className="mt-1 text-sm text-[#8F99B8]">مؤشرات مالية وتشغيلية مجمعة من تذاكر الطلبات.</p>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-bold text-slate-100">
+          <span className="inline-flex items-center gap-2 rounded-xl border border-[#373E55] bg-[#242A39] px-3 py-2 text-sm font-bold text-[#B8C1DD]">
             عرض ملخص الطلبات
             <ChevronDown className={`h-4 w-4 transition ${summaryOpen ? "rotate-180" : ""}`} />
           </span>
         </button>
 
         {summaryOpen && (
-          <div className="border-t border-slate-800 p-5">
+          <div className="border-t border-[#30364A] p-5">
             {summaryQuery.isLoading ? (
               <LoadingState label="جاري تحميل ملخص تذاكر الطلبات..." />
             ) : summaryQuery.error ? (
@@ -434,121 +481,48 @@ export function RequestTicketsPage() {
       <Card className="p-5">
         <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr_1fr_0.8fr_0.8fr]">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <Input
-              className="pr-9"
-              placeholder="بحث برقم التذكرة أو العميل أو الجوال"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-            />
+            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F99B8]" />
+            <Input className="pr-9" placeholder="بحث برقم التذكرة أو العميل أو الجوال" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
           </div>
-
-          <Select
-            value={view}
-            onChange={(event) => {
-              setView(event.target.value as ViewValue);
-              setPage(1);
-            }}
-          >
-            {viewOptions.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
-            ))}
+          <Select value={view} onChange={(event) => { setView(event.target.value as ViewValue); setPage(1); }}>
+            {viewOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </Select>
-
-          <Select
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-            }}
-          >
+          <Select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
             <option className={statusOptionClassName} value="all">كل الحالات</option>
-            {requestTicketStatusOptions.map((item) => (
-              <option className={statusOptionClassName} key={item.value} value={item.value}>{item.label}</option>
-            ))}
+            {requestTicketStatusOptions.map((item) => <option className={statusOptionClassName} key={item.value} value={item.value}>{item.label}</option>)}
           </Select>
-
-          <Input
-            placeholder="الموظف المسؤول"
-            value={assignedTo}
-            onChange={(event) => {
-              setAssignedTo(event.target.value);
-              setPage(1);
-            }}
-          />
-
-          <Input
-            type="date"
-            value={dateFrom}
-            onChange={(event) => {
-              setDateFrom(event.target.value);
-              setPage(1);
-            }}
-            title="من تاريخ"
-          />
-
-          <Input
-            type="date"
-            value={dateTo}
-            onChange={(event) => {
-              setDateTo(event.target.value);
-              setPage(1);
-            }}
-            title="إلى تاريخ"
-          />
+          <Input placeholder="الموظف المسؤول" value={assignedTo} onChange={(event) => { setAssignedTo(event.target.value); setPage(1); }} />
+          <Input type="date" value={dateFrom} onChange={(event) => { setDateFrom(event.target.value); setPage(1); }} title="من تاريخ" />
+          <Input type="date" value={dateTo} onChange={(event) => { setDateTo(event.target.value); setPage(1); }} title="إلى تاريخ" />
         </div>
       </Card>
 
       {hasRows && (
         <div className="grid gap-3 md:hidden">
           {rows.map((ticket) => (
-            <Card
-              key={ticket.id}
-              className="cursor-pointer p-4 transition hover:bg-slate-900/70"
-              onClick={() => setDetails(ticket)}
-            >
+            <Card key={ticket.id} className="cursor-pointer p-4 transition hover:-translate-y-0.5 hover:bg-[#343B52]" onClick={() => setDetails(ticket)}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-500">رقم التذكرة</p>
+                  <p className="text-xs font-bold text-[#8F99B8]">رقم التذكرة</p>
                   <h2 className="mt-1 truncate text-base font-black text-white">{ticket.ticket_number}</h2>
                 </div>
-                <TicketStatusSelect
-                  ticket={ticket}
-                  canManage={canManage}
-                  disabled={statusMutation.isPending}
-                  onChange={changeTicketStatus}
-                />
+                <TicketStatusSelect ticket={ticket} canManage={canManage} disabled={statusMutation.isPending} onChange={changeTicketStatus} />
               </div>
-
               <p className="mt-3 font-black text-white">{ticket.customer_name}</p>
-              <p className="mt-1 text-sm text-slate-400" dir="ltr">{ticket.phone || "-"}</p>
-
+              <p className="mt-1 text-sm text-[#B8C1DD]" dir="ltr">{ticket.phone || "-"}</p>
+              <div className="mt-3 flex flex-wrap gap-2"><TicketDelayBadge ticket={ticket} /><TicketFollowUpBadge ticket={ticket} /></div>
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <Info label="المسؤول" value={ticket.assigned_to} />
                 <Info label="المنطقة" value={[ticket.country, ticket.region].filter(Boolean).join(" / ")} />
                 <Info label="الإنشاء" value={formatDate(ticket.created_at)} />
                 <Info label="الإغلاق" value={formatDate(ticket.closed_at)} />
               </div>
-
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={(event) => { event.stopPropagation(); setDetails(ticket); }}>
-                  <Eye className="h-4 w-4" />
-                  عرض
-                </Button>
-
+                <Button variant="secondary" onClick={(event) => { event.stopPropagation(); setDetails(ticket); }}><Eye className="h-4 w-4" />عرض</Button>
                 {canManage && (
                   <>
-                    <Button variant="secondary" onClick={(event) => { event.stopPropagation(); setEditing(ticket); }}>
-                      <Edit2 className="h-4 w-4" />
-                      تعديل
-                    </Button>
-                    <Button variant="danger" onClick={(event) => { event.stopPropagation(); confirmDelete(ticket); }}>
-                      <Trash2 className="h-4 w-4" />
-                      حذف
-                    </Button>
+                    <Button variant="secondary" onClick={(event) => { event.stopPropagation(); setEditing(ticket); }}><Edit2 className="h-4 w-4" />تعديل</Button>
+                    <Button variant="danger" onClick={(event) => { event.stopPropagation(); confirmDelete(ticket); }}><Trash2 className="h-4 w-4" />حذف</Button>
                   </>
                 )}
               </div>
@@ -566,58 +540,40 @@ export function RequestTicketsPage() {
           <EmptyState title={tickets.length ? "لا توجد نتائج مطابقة" : "لا توجد تذاكر طلبات"} />
         ) : (
           <div className="overflow-hidden">
-            <table className="w-full table-fixed bg-slate-950 text-right text-sm">
-              <thead className="bg-[#050B18] text-slate-300">
+            <table className="w-full table-fixed bg-[#292F40] text-right text-sm">
+              <thead className="bg-[#252B3A] text-[#B8C1DD]">
                 <tr>
                   <th className="w-[15%] px-4 py-4 font-black text-center">رقم التذكرة</th>
                   <th className="w-[23%] px-4 py-4 font-black text-center">العميل</th>
                   <th className="w-[14%] px-4 py-4 font-black text-center">الجوال</th>
                   <th className="w-[16%] px-4 py-4 font-black text-center">الحالة</th>
                   <th className="w-[14%] px-4 py-4 font-black text-center">المسؤول</th>
+                  <th className="w-[12%] px-4 py-4 font-black text-center">التنبيه</th>
                   <th className="w-[10%] px-4 py-4 font-black text-center">الإنشاء</th>
                 </tr>
               </thead>
-
-              <tbody className="divide-y divide-slate-800 bg-slate-950">
+              <tbody className="divide-y divide-[#30364A] bg-[#292F40]">
                 {rows.map((ticket) => (
-                  <tr
-                    key={ticket.id}
-                    onClick={() => setDetails(ticket)}
-                    className="group cursor-pointer bg-slate-950 hover:bg-slate-900/70 [&>td]:transition-colors [&>td]:group-hover:bg-slate-900/70"
-                  >
+                  <tr key={ticket.id} onClick={() => setDetails(ticket)} className="group cursor-pointer bg-[#292F40] hover:bg-[#343B52] [&>td]:transition-colors [&>td]:group-hover:bg-[#343B52]">
                     <td className="truncate px-4 py-4 font-black text-white">{ticket.ticket_number}</td>
-                    <td className="px-4 py-4">
-                      <p className="truncate font-black text-white">{ticket.customer_name}</p>
-                      <p className="truncate text-xs text-slate-500" dir="ltr">{ticket.email || "-"}</p>
-                    </td>
-                    <td className="truncate px-4 py-4 text-slate-400" dir="ltr">{ticket.phone || "-"}</td>
-                    <td className="px-4 py-4">
-                      <TicketStatusSelect
-                        ticket={ticket}
-                        canManage={canManage}
-                        disabled={statusMutation.isPending}
-                        onChange={changeTicketStatus}
-                      />
-                    </td>
-                    <td className="truncate px-4 py-4 text-slate-400">{ticket.assigned_to || "-"}</td>
-                    <td className="truncate px-4 py-4 text-slate-400">{formatDate(ticket.created_at)}</td>
+                    <td className="px-4 py-4"><p className="truncate font-black text-white">{ticket.customer_name}</p><p className="truncate text-xs text-[#8F99B8]" dir="ltr">{ticket.email || "-"}</p></td>
+                    <td className="truncate px-4 py-4 text-[#B8C1DD]" dir="ltr">{ticket.phone || "-"}</td>
+                    <td className="px-4 py-4"><TicketStatusSelect ticket={ticket} canManage={canManage} disabled={statusMutation.isPending} onChange={changeTicketStatus} /></td>
+                    <td className="truncate px-4 py-4 text-[#B8C1DD]">{ticket.assigned_to || "-"}</td>
+                    <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><TicketDelayBadge ticket={ticket} /><TicketFollowUpBadge ticket={ticket} /></div></td>
+                    <td className="truncate px-4 py-4 text-[#B8C1DD]">{formatDate(ticket.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-
-        <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4 text-sm text-slate-400">
+        <div className="flex items-center justify-between border-t border-[#30364A] px-5 py-4 text-sm text-[#8F99B8]">
           <span>عرض {rows.length} من {filtered.length}</span>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
-              السابق
-            </Button>
+            <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>السابق</Button>
             <span>{page} / {totalPages}</span>
-            <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
-              التالي
-            </Button>
+            <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>التالي</Button>
           </div>
         </div>
       </Card>
@@ -643,8 +599,8 @@ function SummaryGrid({ summary }: { summary?: RequestTicketsSummary }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
-        <div key={item.label} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-          <p className="text-sm text-slate-500">{item.label}</p>
+        <div key={item.label} className="rounded-xl border border-[#373E55] bg-[#242A39] p-4 shadow-inner shadow-black/5">
+          <p className="text-sm text-[#8F99B8]">{item.label}</p>
           <p className="mt-2 text-2xl font-black text-white">{item.value}</p>
         </div>
       ))}
@@ -655,8 +611,8 @@ function SummaryGrid({ summary }: { summary?: RequestTicketsSummary }) {
 function Info({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <div>
-      <p className="text-xs font-bold text-slate-500">{label}</p>
-      <p className="mt-1 font-black text-slate-100">{value || "-"}</p>
+      <p className="text-xs font-bold text-[#8F99B8]">{label}</p>
+      <p className="mt-1 font-black text-[#F3F6F9]">{value || "-"}</p>
     </div>
   );
 }
@@ -711,7 +667,24 @@ function RequestTicketDetailsModal({
   onDelete: (ticket: RequestTicket) => void;
   onClose: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const { setMessage } = useAuth();
+  const [attachmentType, setAttachmentType] = useState("Invoice");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const linked = linkedSuppliers(ticket, suppliers);
+  const attachments = (ticket.attachments || ticket.documents || []) as RequestTicketAttachment[];
+  const uploadMutation = useMutation({
+    mutationFn: () => {
+      if (!attachmentFile) throw new Error("اختر ملفًا للرفع");
+      return uploadRequestTicketAttachment(ticket.id, { file: attachmentFile, attachment_type: attachmentType });
+    },
+    onSuccess: () => {
+      setAttachmentFile(null);
+      queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
+      setMessage("تم رفع المرفق");
+    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل رفع المرفق"),
+  });
 
   return (
     <Modal title="تفاصيل تذكرة الطلب" onClose={onClose}>
@@ -727,8 +700,13 @@ function RequestTicketDetailsModal({
           <Info label="البريد الإلكتروني" value={ticket.email} />
           <Info label="المنطقة" value={[ticket.country, ticket.region].filter(Boolean).join(" / ")} />
           <Info label="مبلغ الطلب" value={formatCurrency(ticket.order_amount)} />
-          <Info label="الضريبة" value={formatCurrency(ticket.vat_amount)} />
+          <Info label="مبلغ الضريبة" value={formatCurrency(ticket.vat_amount)} />
           <Info label="الإجمالي" value={formatCurrency(ticket.total_amount ?? (numberValue(ticket.order_amount) + numberValue(ticket.vat_amount)))} />
+          <Info label="مدة دورة الطلب" value={formatDuration(ticketCycleMs(ticket))} />
+          <div>
+            <p className="text-xs font-bold text-slate-500">مؤشر التأخير</p>
+            <div className="mt-1 flex flex-wrap gap-2"><TicketDelayBadge ticket={ticket} /><TicketFollowUpBadge ticket={ticket} />{!ticketDelayLevel(ticket) && !extractSupplierIds(ticket).length && <span className="text-sm text-slate-500">-</span>}</div>
+          </div>
         </div>
 
         <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
@@ -764,6 +742,54 @@ function RequestTicketDetailsModal({
           )}
         </div>
 
+        <section className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="font-black text-white">المرفقات</h3>
+              <p className="mt-1 text-sm text-slate-400">فواتير العملاء، عروض الأسعار، الصور، والمستندات المرتبطة بالتذكرة.</p>
+            </div>
+            {canManage && (
+              <div className="grid gap-2 sm:grid-cols-[160px_1fr_auto]">
+                <Select value={attachmentType} onChange={(event) => setAttachmentType(event.target.value)}>
+                  <option value="Invoice">فاتورة عميل</option>
+                  <option value="Quotation">عرض سعر</option>
+                  <option value="Photo">صور</option>
+                  <option value="Document">مستندات</option>
+                  <option value="Other">أخرى</option>
+                </Select>
+                <Input type="file" onChange={(event) => setAttachmentFile(event.target.files?.[0] || null)} />
+                <Button onClick={() => uploadMutation.mutate()} disabled={!attachmentFile || uploadMutation.isPending}>
+                  <Upload className="h-4 w-4" />
+                  {uploadMutation.isPending ? "جاري الرفع..." : "رفع"}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {attachments.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">لا توجد مرفقات متاحة لهذه التذكرة.</p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {attachments.map((attachment) => {
+                const url = fileHref(attachment.file_url || attachment.file_path || "");
+                return (
+                  <div key={attachment.id} className="flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-900 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-white">{attachment.file_name || attachment.attachment_type || "مرفق"}</p>
+                      <p className="mt-1 text-xs text-slate-500">{attachment.attachment_type || "Other"} | {formatDate(attachment.created_at)}</p>
+                    </div>
+                    {url && (
+                      <a className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm font-bold text-slate-100 hover:bg-slate-700" href={url} target="_blank" rel="noreferrer">
+                        فتح
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {canManage && (
           <div className="flex flex-wrap gap-2 border-t border-slate-800 pt-4">
             <Button variant="secondary" onClick={() => onEdit(ticket)}>
@@ -785,13 +811,17 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
   const queryClient = useQueryClient();
   const { setMessage } = useAuth();
   const [error, setError] = useState("");
-  const [form, setForm] = useState<Partial<RequestTicket>>(() => ticket ? { ...ticket } : emptyForm());
+  const [form, setForm] = useState<Partial<RequestTicket>>(() => ticket ? {
+    ...ticket,
+    vat_amount: percentFromVatAmount(ticket.order_amount, ticket.vat_amount),
+  } : emptyForm());
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => extractSupplierIds(ticket));
   const [supplierSearch, setSupplierSearch] = useState("");
   const suppliersQuery = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers, staleTime: 60_000 });
 
   const orderAmount = numberValue(form.order_amount);
-  const vatAmount = numberValue(form.vat_amount);
+  const vatPercent = numberValue(form.vat_amount);
+  const vatAmount = calculateVatAmount(orderAmount, vatPercent);
   const totalAmount = orderAmount + vatAmount;
 
   const supplierOptions = useMemo(() => {
@@ -837,7 +867,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
         cancellation_reason: normalizedStatus === "cancelled" ? form.cancellation_reason?.trim() || null : null,
         supplier_ids: selectedSupplierIds,
         order_amount: optionalNumber(form.order_amount),
-        vat_amount: optionalNumber(form.vat_amount),
+        vat_amount: vatAmount,
         total_amount: totalAmount,
       };
 
@@ -904,7 +934,7 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
           </Field>
 
           <Field label="رقم الجوال">
-            <Input dir="ltr" value={form.phone || ""} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+            <PhoneNumberInput value={form.phone || ""} onChange={(phone) => setForm({ ...form, phone })} />
           </Field>
 
           <Field label="البريد الإلكتروني">
@@ -961,19 +991,21 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
             />
           </Field>
 
-          <Field label="الضريبة">
+          <Field label="نسبة الضريبة %">
             <Input
               dir="ltr"
               type="number"
               min="0"
+              max="100"
               step="0.01"
               value={form.vat_amount ?? ""}
               onChange={(event) => setForm({ ...form, vat_amount: event.target.value })}
             />
+            <p className="mt-2 text-xs font-bold text-slate-500">مبلغ الضريبة: {formatCurrency(vatAmount)}</p>
           </Field>
 
           <Field label="الإجمالي">
-            <Input dir="ltr" readOnly value={totalAmount.toFixed(2)} className="bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300" />
+            <Input dir="ltr" readOnly value={formatCurrency(totalAmount)} className="bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-300" />
           </Field>
         </div>
 

@@ -88,4 +88,41 @@
   body {
     @apply bg-[color:var(--background)] text-[color:var(--foreground)];
   }
+
+  img[alt="ClinicFeed"] {
+    height: auto;
+    object-fit: contain;
+  }
+
+  .sidebar-logo-img {
+    width: 170px !important;
+    height: 64px !important;
+    max-width: 190px !important;
+    max-height: 72px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+
+  .login-logo-img {
+    width: 240px !important;
+    height: 96px !important;
+    max-width: 280px !important;
+    max-height: 104px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+  }
+
+  .sidebar-logo-img.logo-needs-crop {
+    width: 190px !important;
+    height: 72px !important;
+    object-fit: cover !important;
+    object-position: center !important;
+  }
+
+  .login-logo-img.logo-needs-crop {
+    width: 280px !important;
+    height: 104px !important;
+    object-fit: cover !important;
+    object-position: center !important;
+  }
 }

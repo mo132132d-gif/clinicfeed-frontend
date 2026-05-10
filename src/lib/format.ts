@@ -70,17 +70,18 @@ export function formatDateTime(value?: string | null) {
 }
 
 export function formatNumber(value?: number | string | null) {
-  const parsed = Number(value || 0);
+  if (value === undefined || value === null || value === "") return "-";
+  const parsed = Number(value);
 
-  return Number.isFinite(parsed) ? parsed.toLocaleString("ar-SA") : "0";
+  return Number.isFinite(parsed) ? parsed.toLocaleString("ar-SA") : "-";
 }
 
 export function formatCurrency(value?: number | string | null) {
   const parsed = Number(value || 0);
 
-  if (!Number.isFinite(parsed)) return "0";
+  if (!Number.isFinite(parsed)) return "0 ريال";
 
-  return parsed.toLocaleString("ar-SA", { maximumFractionDigits: 2 });
+  return `${parsed.toLocaleString("ar-SA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ريال`;
 }
 
 export function parseCategories(value?: string | string[] | null) {
@@ -114,7 +115,7 @@ export function expiryState(dateValue?: string | null) {
   const days = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   if (days < 0) return { label: "منتهي", tone: "danger" as const };
-  if (days <= 30) return { label: "قريب الانتهاء", tone: "warning" as const };
+  if (days <= 30) return { label: "ينتهي قريبًا", tone: "warning" as const };
 
   return { label: "ساري", tone: "success" as const };
 }
@@ -126,6 +127,34 @@ export function percentage(numerator?: number | string | null, denominator?: num
   if (!Number.isFinite(n) || !Number.isFinite(d) || d <= 0) return null;
 
   return (n / d) * 100;
+}
+
+export function safePercent(numerator?: number | string | null, denominator?: number | string | null) {
+  return percentage(numerator, denominator);
+}
+
+export function safeAverage(numbers: Array<number | string | null | undefined>) {
+  const values = numbers.map(Number).filter((value) => Number.isFinite(value));
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+export function formatPercent(value?: number | string | null, maximumFractionDigits = 0) {
+  if (value === undefined || value === null || value === "") return "-";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "-";
+  return `${parsed.toLocaleString("ar-SA", { maximumFractionDigits })}%`;
+}
+
+export function formatDurationHours(hours?: number | string | null) {
+  if (hours === undefined || hours === null || hours === "") return "-";
+  const parsed = Number(hours);
+  if (!Number.isFinite(parsed)) return "-";
+  if (parsed < 1) return "أقل من ساعة";
+  if (parsed < 24) return `${Math.round(parsed).toLocaleString("ar-SA")} ساعة`;
+  const days = Math.floor(parsed / 24);
+  const remainingHours = Math.round(parsed % 24);
+  return remainingHours ? `${days.toLocaleString("ar-SA")} يوم و ${remainingHours.toLocaleString("ar-SA")} ساعة` : `${days.toLocaleString("ar-SA")} يوم`;
 }
 
 export function serviceScoreLabel(score: number | null) {
