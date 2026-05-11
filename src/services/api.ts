@@ -1,7 +1,12 @@
 import { LEGACY_TOKEN_KEYS, TOKEN_KEY } from "../lib/constants";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL;
-export const API_URL = configuredApiUrl || (import.meta.env.DEV ? "http://localhost:4000/api" : "");
+const isLocalApiUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(configuredApiUrl || "");
+export const API_URL = import.meta.env.DEV
+  ? configuredApiUrl || "http://localhost:4000/api"
+  : configuredApiUrl && !isLocalApiUrl
+    ? configuredApiUrl
+    : "";
 
 export class ApiError extends Error {
   status: number;
