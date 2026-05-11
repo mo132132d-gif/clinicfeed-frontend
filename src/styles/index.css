@@ -3,7 +3,7 @@
 
 :root {
   color-scheme: dark;
-  --cf-page: #171E2D;
+  --cf-page: #101827;
   --cf-shell: #1D2435;
   --cf-card: #242C3F;
   --cf-card-soft: #1E2638;
@@ -39,9 +39,9 @@ body,
 body {
   font-family: 'Cairo', system-ui, sans-serif;
   background:
-    radial-gradient(circle at 14% 8%, rgba(91, 115, 232, 0.11), transparent 28%),
-    radial-gradient(circle at 88% 0%, rgba(80, 165, 241, 0.07), transparent 26%),
-    linear-gradient(135deg, #171E2D 0%, #182132 48%, #141B29 100%);
+    radial-gradient(circle at 14% 8%, rgba(80, 165, 241, 0.10), transparent 28%),
+    radial-gradient(circle at 88% 0%, rgba(52, 195, 143, 0.06), transparent 26%),
+    linear-gradient(135deg, #101827 0%, #151D2C 48%, #0D1422 100%);
   color: var(--cf-text);
 }
 
