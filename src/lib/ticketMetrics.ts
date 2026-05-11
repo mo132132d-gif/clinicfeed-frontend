@@ -1,4 +1,5 @@
 import type { RequestTicket } from "../types";
+import { normalizeArabicDateLabel } from "./format";
 import { normalizeRequestTicketStatus } from "./requestTicketStatus";
 
 const hourMs = 60 * 60 * 1000;
@@ -32,9 +33,9 @@ export function formatDuration(ms?: number | null) {
   if (ms === null || ms === undefined || !Number.isFinite(ms)) return "-";
   const days = Math.floor(ms / dayMs);
   const hours = Math.floor((ms % dayMs) / hourMs);
-  if (days > 0 && hours > 0) return `${days} يوم و ${hours} ساعة`;
-  if (days > 0) return `${days} يوم`;
-  if (hours > 0) return `${hours} ساعة`;
+  if (days > 0 && hours > 0) return normalizeArabicDateLabel(`${days} يوم و ${hours} ساعة`);
+  if (days > 0) return normalizeArabicDateLabel(`${days} يوم`);
+  if (hours > 0) return normalizeArabicDateLabel(`${hours} ساعة`);
   return "أقل من ساعة";
 }
 

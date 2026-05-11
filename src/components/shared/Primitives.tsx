@@ -98,8 +98,8 @@ export function ExpiryBadge({ date }: { date?: string | null }) {
 
 export function EmptyState({ title = "لا توجد بيانات", subtitle = "ستظهر البيانات هنا عند توفرها.", children }: { title?: string; subtitle?: string; children?: ReactNode }) {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-3xl border border-[#2F394F] bg-[#1E2638]/70 px-6 py-10 text-center">
-      <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-[#3A4560] bg-[#242C3F] text-[#8E9AB6]">
+    <div className="mx-auto flex max-w-md flex-col items-center justify-center px-6 py-10 text-center">
+      <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-transparent text-[#8E9AB6]">
         <Inbox className="h-5 w-5" />
       </div>
       <p className="font-black text-[#F4F7FB]">{title}</p>

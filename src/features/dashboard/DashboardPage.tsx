@@ -161,7 +161,7 @@ function ChartPlaceholderBars() {
 
 function OperationsChart({ data, hasData }: { data: Array<{ name: string; value: number; secondary: number }>; hasData: boolean }) {
   return (
-    <div className="h-[360px]">
+    <div className="h-[360px] min-h-[360px] min-w-0 w-full">
       {hasData ? (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
@@ -193,7 +193,7 @@ function OperationsChart({ data, hasData }: { data: Array<{ name: string; value:
 function CompactBarChart({ data }: { data: Array<{ name: string; value: number }> }) {
   const hasData = data.some((item) => item.value > 0);
   return (
-    <div className="h-52 rounded-3xl border border-[#343A4F] bg-[#252B3A] p-4">
+    <div className="h-52 min-h-52 min-w-0 w-full rounded-3xl border border-[#343A4F] bg-[#252B3A] p-4">
       {hasData ? (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
@@ -337,7 +337,7 @@ export function DashboardPage() {
               لوحة متابعة تشغيلية مباشرة
             </div>
             <h2 className="mt-4 text-3xl font-black tracking-tight text-[#F3F6F9] md:text-4xl">نظرة عامة على عمليات ClinicFeed</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#B8C1DD]">مؤشرات الطلبات، الموردين، المستندات والتنبيهات الحرجة في واجهة Dashboard أكثر وضوحًا وقربًا من قوالب Minible.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#B8C1DD]">مؤشرات الطلبات، الموردين، المستندات والتنبيهات الحرجة في واجهة Dashboard أكثر وضوحًا وقربًا.</p>
           </div>
           <div className="grid min-w-[280px] grid-cols-2 gap-3">
             <MetricPill label="إيرادات الموردين" value={performance.length ? formatCurrency(revenue) : "-"} color="#34C38F" />

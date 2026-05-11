@@ -68,6 +68,16 @@ const statusOptionClassName = "bg-slate-950 text-slate-100 checked:bg-blue-700 c
 
 type TicketStatus = RequestTicketStatus;
 type ViewValue = RequestTicketParams["view"];
+type DateRangePreset = "all" | "today" | "week" | "month" | "half_year" | "year";
+
+const dateRangeOptions: Array<{ value: DateRangePreset; label: string }> = [
+  { value: "all", label: "كل الفترات" },
+  { value: "today", label: "اليوم" },
+  { value: "week", label: "الأسبوع" },
+  { value: "month", label: "الشهر" },
+  { value: "half_year", label: "نصف سنة" },
+  { value: "year", label: "سنة" },
+];
 
 function StatusBadge({ status }: { status?: string | null }) {
   return (
@@ -140,6 +150,30 @@ function matchesDateRange(ticket: RequestTicket, dateFrom?: string, dateTo?: str
   if (dateFrom && date < dateFrom) return false;
   if (dateTo && date > dateTo) return false;
   return true;
+}
+
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dateRangeForPreset(preset: DateRangePreset) {
+  if (preset === "all") return { from: "", to: "" };
+
+  const to = new Date();
+  const from = new Date(to);
+
+  if (preset === "week") from.setDate(from.getDate() - 6);
+  if (preset === "month") from.setDate(from.getDate() - 29);
+  if (preset === "half_year") from.setMonth(from.getMonth() - 6);
+  if (preset === "year") from.setFullYear(from.getFullYear() - 1);
+
+  return {
+    from: dateInputValue(from),
+    to: dateInputValue(to),
+  };
 }
 
 function numberValue(value?: number | string | null) {
@@ -328,6 +362,7 @@ export function RequestTicketsPage() {
   const [status, setStatus] = useState("all");
   const [assignedTo, setAssignedTo] = useState("");
   const [search, setSearch] = useState("");
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
@@ -482,6 +517,14 @@ export function RequestTicketsPage() {
     }
   }
 
+  function changeDateRangePreset(value: DateRangePreset) {
+    const range = dateRangeForPreset(value);
+    setDateRangePreset(value);
+    setDateFrom(range.from);
+    setDateTo(range.to);
+    setPage(1);
+  }
+
   return (
     <div className="space-y-6">
       {editing !== undefined && (
@@ -569,7 +612,7 @@ export function RequestTicketsPage() {
       </Card>
 
       <Card className="p-5">
-        <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr_1fr_0.8fr_0.8fr]">
+        <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr_1fr_0.9fr_0.8fr_0.8fr]">
           <div className="relative">
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F99B8]" />
             <Input className="pr-9" placeholder="بحث برقم التذكرة أو العميل أو الجوال" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
@@ -582,8 +625,11 @@ export function RequestTicketsPage() {
             {requestTicketStatusOptions.map((item) => <option className={statusOptionClassName} key={item.value} value={item.value}>{item.label}</option>)}
           </Select>
           <Input placeholder="الموظف المسؤول" value={assignedTo} onChange={(event) => { setAssignedTo(event.target.value); setPage(1); }} />
-          <Input type="date" value={dateFrom} onChange={(event) => { setDateFrom(event.target.value); setPage(1); }} title="من تاريخ" />
-          <Input type="date" value={dateTo} onChange={(event) => { setDateTo(event.target.value); setPage(1); }} title="إلى تاريخ" />
+          <Select value={dateRangePreset} onChange={(event) => changeDateRangePreset(event.target.value as DateRangePreset)} title="الفترة">
+            {dateRangeOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </Select>
+          <Input type="date" value={dateFrom} onChange={(event) => { setDateRangePreset("all"); setDateFrom(event.target.value); setPage(1); }} title="من تاريخ" />
+          <Input type="date" value={dateTo} onChange={(event) => { setDateRangePreset("all"); setDateTo(event.target.value); setPage(1); }} title="إلى تاريخ" />
         </div>
       </Card>
 

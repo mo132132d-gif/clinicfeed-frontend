@@ -69,6 +69,14 @@ export function formatDateTime(value?: string | null) {
   return `${parsed.toISOString().slice(0, 10)} ${parsed.toISOString().slice(11, 16)}`;
 }
 
+export function normalizeArabicDateLabel(value?: string | number | null) {
+  return String(value ?? "")
+    .replace(/رهش/g, "شهر")
+    .replace(/ةنس/g, "سنة")
+    .replace(/موي/g, "يوم")
+    .replace(/عوبسأ/g, "أسبوع");
+}
+
 export function formatNumber(value?: number | string | null) {
   if (value === undefined || value === null || value === "") return "-";
   const parsed = Number(value);
@@ -154,7 +162,9 @@ export function formatDurationHours(hours?: number | string | null) {
   if (parsed < 24) return `${Math.round(parsed).toLocaleString("ar-SA")} ساعة`;
   const days = Math.floor(parsed / 24);
   const remainingHours = Math.round(parsed % 24);
-  return remainingHours ? `${days.toLocaleString("ar-SA")} يوم و ${remainingHours.toLocaleString("ar-SA")} ساعة` : `${days.toLocaleString("ar-SA")} يوم`;
+  return normalizeArabicDateLabel(
+    remainingHours ? `${days.toLocaleString("ar-SA")} يوم و ${remainingHours.toLocaleString("ar-SA")} ساعة` : `${days.toLocaleString("ar-SA")} يوم`
+  );
 }
 
 export function serviceScoreLabel(score: number | null) {

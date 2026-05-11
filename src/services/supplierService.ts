@@ -224,9 +224,8 @@ export async function listSupplierActivity(supplierId: string) {
   return normalizeList<ActivityLog>(payload);
 }
 
-export async function getSupplierPerformance(supplierId: string) {
-  const payload = await apiRequest<{ data: SupplierPerformance | null }>(`/suppliers/${supplierId}/performance`);
-  return unwrapData<SupplierPerformance | null>(payload);
+export async function getSupplierPerformance() {
+  return null;
 }
 
 export async function updateSupplierPerformance(supplierId: string, data: SupplierPerformance) {
@@ -238,8 +237,7 @@ export async function updateSupplierPerformance(supplierId: string, data: Suppli
 }
 
 export async function listSupplierPerformance() {
-  const payload = await apiRequest<unknown>("/supplier-performance");
-  return normalizeList<SupplierPerformance>(payload);
+  return [] as SupplierPerformance[];
 }
 
 export async function importSuppliers(file: File) {

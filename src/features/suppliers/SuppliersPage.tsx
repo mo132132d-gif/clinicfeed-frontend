@@ -251,19 +251,21 @@ export function SuppliersPage() {
       </Card>
 
       {hasRows && (
-        <div className="grid gap-3 md:hidden">
+        <div className="grid w-full min-w-0 gap-3 md:hidden">
           {rows.map((supplier) => (
             <Link
               key={supplier.id}
               to={`/suppliers/${supplier.id}`}
-              className="rounded-2xl border border-[#373E55] bg-[#292F40] p-4 shadow-[0_12px_32px_rgba(10,14,25,0.20)] transition hover:-translate-y-0.5 hover:border-[#556EE6]/50 hover:bg-[#343B52]"
+              className="block w-full min-w-0 overflow-hidden rounded-2xl border border-[#373E55] bg-[#292F40] p-4 text-right shadow-[0_12px_32px_rgba(10,14,25,0.20)] transition hover:-translate-y-0.5 hover:border-[#556EE6]/50 hover:bg-[#343B52]"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <h2 className="truncate text-base font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</h2>
                   {supplier.name_en && <p className="mt-1 truncate text-xs text-[#8F99B8]" dir="ltr">{supplier.name_en}</p>}
                 </div>
-                <StatusBadge status={supplier.status} />
+                <div className="shrink-0">
+                  <StatusBadge status={supplier.status} />
+                </div>
               </div>
 
               {documentRiskBySupplier.get(supplier.id) && (
@@ -276,14 +278,14 @@ export function SuppliersPage() {
                 </div>
               )}
 
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
+              <div className="mt-4 grid min-w-0 grid-cols-2 gap-3 text-sm">
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#8F99B8]">التقييم</p>
-                  <p className="mt-1 font-black text-[#F3F6F9]">{supplierRating(supplier)}</p>
+                  <p className="mt-1 truncate font-black text-[#F3F6F9]">{supplierRating(supplier)}</p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-[#8F99B8]">آخر تحديث</p>
-                  <p className="mt-1 font-black text-[#F3F6F9]">{formatDate(supplier.updated_at || supplier.created_at)}</p>
+                  <p className="mt-1 truncate font-black text-[#F3F6F9]">{formatDate(supplier.updated_at || supplier.created_at)}</p>
                 </div>
               </div>
             </Link>

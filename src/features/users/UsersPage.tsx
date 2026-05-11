@@ -13,6 +13,7 @@ import {
   updateUser,
   type UserFormPayload,
 } from "../../services/userService";
+import { listNotificationPreferences, updateNotificationPreference } from "../../services/notificationService";
 import { useAuth } from "../auth/AuthProvider";
 import type { Role, User } from "../../types";
 import {
@@ -43,11 +44,26 @@ export function UsersPage() {
     staleTime: 30_000,
   });
 
+  const notificationPreferencesQuery = useQuery({
+    queryKey: ["notificationPreferences"],
+    queryFn: listNotificationPreferences,
+    enabled: canManageUsers(user?.role),
+    staleTime: 30_000,
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => setUserStatus(id, active),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setMessage("تم تحديث حالة المستخدم");
+    },
+  });
+
+  const notificationPreferenceMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => updateNotificationPreference(id, enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notificationPreferences"] });
+      setMessage("تم تحديث إعدادات الإشعارات");
     },
   });
 
@@ -201,6 +217,39 @@ export function UsersPage() {
               </table>
             </div>
           </>
+        )}
+      </Card>
+
+      <Card className="p-5">
+        <div className="mb-4">
+          <h2 className="text-lg font-black text-white">صلاحيات الإشعارات</h2>
+          <p className="mt-1 text-sm text-[#8F99B8]">تحديد الأدوار أو المستخدمين الذين يستقبلون أنواع الإشعارات المهمة.</p>
+        </div>
+
+        {notificationPreferencesQuery.isLoading ? (
+          <LoadingState label="جاري تحميل إعدادات الإشعارات..." />
+        ) : (notificationPreferencesQuery.data || []).length === 0 ? (
+          <EmptyState title="لا توجد إعدادات إشعارات" subtitle="ستظهر إعدادات الإشعارات بعد تفعيلها من الخادم." />
+        ) : (
+          <div className="space-y-3">
+            {(notificationPreferencesQuery.data || []).map((preference) => (
+              <label key={preference.id} className="flex items-center justify-between gap-4 rounded-2xl border border-[#30364A] bg-[#252B3A] p-4">
+                <div>
+                  <p className="font-black text-white">{preference.notification_type}</p>
+                  <p className="mt-1 text-sm text-[#8F99B8]">
+                    المستلم: {preference.recipient_user_name || (preference.recipient_role ? roleLabels[preference.recipient_role] : "غير محدد")}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={preference.enabled}
+                  disabled={notificationPreferenceMutation.isPending}
+                  onChange={(event) => notificationPreferenceMutation.mutate({ id: preference.id, enabled: event.target.checked })}
+                  className="h-5 w-5 accent-[#5B73E8]"
+                />
+              </label>
+            ))}
+          </div>
         )}
       </Card>
     </div>

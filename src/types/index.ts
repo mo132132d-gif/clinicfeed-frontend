@@ -100,12 +100,67 @@ export interface RequestTicketAttachment {
 export interface ActivityLog {
   id: string;
   user_id?: string | null;
+  user_name?: string | null;
+  actor_name?: string | null;
   action: string;
   entity_type: string;
   entity_id?: string | null;
+  entity_name?: string | null;
+  readable_entity_name?: string | null;
+  description?: string | null;
+  message?: string | null;
   old_value?: Record<string, unknown> | null;
   new_value?: Record<string, unknown> | null;
   created_at?: string;
+}
+
+export interface Notification {
+  id: string;
+  notification_type?: string | null;
+  type?: string | null;
+  title?: string | null;
+  message?: string | null;
+  actor_name?: string | null;
+  user_name?: string | null;
+  is_read?: boolean | null;
+  read_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface NotificationPreference {
+  id: string;
+  notification_type: string;
+  recipient_role?: Role | null;
+  recipient_user_id?: string | null;
+  recipient_user_name?: string | null;
+  enabled: boolean;
+}
+
+export interface CompanyDocument {
+  id: string;
+  folder_id?: string | null;
+  title: string;
+  category: string;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_mime_type?: string | null;
+  file_size?: number | string | null;
+  file_path?: string | null;
+  notes?: string | null;
+  visibility_role?: Role | "all" | null;
+  uploaded_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface CompanyDocumentFolder {
+  id: string;
+  name: string;
+  description?: string | null;
+  visibility_role?: Role | "all" | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface SupplierPerformance {

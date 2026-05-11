@@ -169,6 +169,12 @@ aside button:hover {
   color: var(--cf-text) !important;
 }
 
+aside a.app-logo-link,
+aside a.app-logo-link:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 aside a.bg-blue-900\/70,
 aside .bg-blue-900\/70 {
   background: var(--cf-blue) !important;
