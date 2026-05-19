@@ -112,7 +112,7 @@ export function SuppliersPage() {
 
     return suppliers.filter((supplier) => {
       const categories = parseCategories(supplier.category);
-      const haystack = [supplier.name_ar, supplier.name_en, supplier.city, supplier.cr_number, supplier.vat_number, ...categories]
+      const haystack = [supplier.supplier_code, supplier.name_ar, supplier.name_en, supplier.city, supplier.cr_number, supplier.vat_number, ...categories]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -259,9 +259,10 @@ export function SuppliersPage() {
               className="block w-full min-w-0 overflow-hidden rounded-2xl border border-[#373E55] bg-[#292F40] p-4 text-right shadow-[0_12px_32px_rgba(10,14,25,0.20)] transition hover:-translate-y-0.5 hover:border-[#556EE6]/50 hover:bg-[#343B52]"
             >
               <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 text-right">
                   <h2 className="truncate text-base font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</h2>
-                  {supplier.name_en && <p className="mt-1 truncate text-xs text-[#8F99B8]" dir="ltr">{supplier.name_en}</p>}
+                  <p className="mt-1 truncate text-xs font-black text-[#8EA0FF]">معرف المورد: <span dir="ltr">{supplier.supplier_code || "غير محدد"}</span></p>
+                  {supplier.name_en && <p className="mt-1 truncate text-right text-xs text-[#8F99B8]">{supplier.name_en}</p>}
                 </div>
                 <div className="shrink-0">
                   <StatusBadge status={supplier.status} />
@@ -331,22 +332,25 @@ export function SuppliersPage() {
                   <tr
                     key={supplier.id}
                     onClick={() => { window.location.href = `/suppliers/${supplier.id}`; }}
-                    className="group cursor-pointer bg-[#292F40] hover:bg-[#343B52] [&>td]:transition-colors [&>td]:group-hover:bg-[#343B52]"
+                    className="group cursor-pointer bg-[#292F40] align-middle hover:bg-[#343B52] [&>td]:align-middle [&>td]:transition-colors [&>td]:group-hover:bg-[#343B52]"
                   >
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 text-right align-middle">
                       <p className="truncate font-black text-white">{supplier.name_ar || supplier.name_en || "-"}</p>
-                      <p className="truncate text-xs text-[#8F99B8]" dir="ltr">{supplier.name_en || "-"}</p>
+                      <p className="truncate text-xs font-black text-[#8EA0FF]">معرف المورد: <span dir="ltr">{supplier.supplier_code || "غير محدد"}</span></p>
+                      <p className="truncate text-right text-xs text-[#8F99B8]">{supplier.name_en || "-"}</p>
                     </td>
 
                     <td className="whitespace-nowrap px-4 py-4 text-center text-[#B8C1DD]">
                       {supplier.city || "-"}
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-4 text-center">
-                      <StatusBadge status={supplier.status} />
+                    <td className="whitespace-nowrap px-4 py-4 text-center align-middle">
+                      <div className="flex items-center justify-center">
+                        <StatusBadge status={supplier.status} />
+                      </div>
                     </td>
 
-                    <td className="whitespace-nowrap px-4 py-4 text-center text-[#B8C1DD]">
+                    <td className="whitespace-nowrap px-4 py-4 text-center align-middle text-[#B8C1DD]">
                       {formatDate(supplier.updated_at || supplier.created_at)}
                     </td>
 
@@ -357,7 +361,7 @@ export function SuppliersPage() {
                       })()}
                     </td>
 
-                    <td className="px-4 py-4 text-center text-[#B8C1DD]">
+                    <td className="px-4 py-4 text-center align-middle text-[#B8C1DD]">
                       {documentRiskBySupplier.get(supplier.id) ? (
                         <span className={`rounded-full border px-2 py-1 text-xs font-bold ${
                           documentRiskBySupplier.get(supplier.id) === "danger"

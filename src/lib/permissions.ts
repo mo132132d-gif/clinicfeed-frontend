@@ -8,6 +8,10 @@ export function canManageUsers(role?: Role) {
   return role === 'admin';
 }
 
+export function canExportDailyReports(role?: Role) {
+  return role === 'admin' || role === 'manager';
+}
+
 export function canManageSuppliers(role?: Role) {
   return role === 'admin' || role === 'manager' || role === 'operations';
 }

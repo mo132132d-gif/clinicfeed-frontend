@@ -3,9 +3,11 @@ import {
   Activity,
   Bell,
   CreditCard,
+  FileDown,
   FileText,
   LayoutDashboard,
   LogOut,
+  MapPinned,
   Menu,
   RefreshCw,
   Search,
@@ -20,13 +22,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../features/auth/AuthProvider";
 import { formatDateTime } from "../../lib/format";
 import { roleLabels } from "../../lib/constants";
-import { canManageUsers } from "../../lib/permissions";
-import { Button, cn } from "../shared/Primitives";
+import { canExportDailyReports, canManageUsers } from "../../lib/permissions";
+import { Button, Field, Input, Modal, cn } from "../shared/Primitives";
 import { getUnreadNotificationCount, listNotifications, markNotificationRead } from "../../services/notificationService";
+import {
+  dailyReportSections,
+  downloadDailyReportPdf,
+  sendDailyReportEmail,
+  type DailyReportSection,
+} from "../../services/reportService";
 
 const baseNavigation = [
   { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
   { name: "الموردين", href: "/suppliers", icon: Users },
+  { name: "خريطة الموردين", href: "/suppliers/map", icon: MapPinned },
   { name: "تذاكر الطلبات", href: "/request-tickets", icon: Ticket },
   { name: "سداد الموردين", href: "/supplier-payment-requests", icon: CreditCard },
   { name: "مركز مستندات ClinicFeed", href: "/company-documents", icon: FileText },
@@ -60,6 +69,13 @@ function pageInfo(pathname: string) {
     return {
       title: "مركز مستندات ClinicFeed",
       subtitle: "مستندات الشركة الرسمية والملفات الداخلية",
+    };
+  }
+
+  if (pathname === "/suppliers/map") {
+    return {
+      title: "خريطة الموردين",
+      subtitle: "عرض مواقع الموردين المحفوظة على خريطة تفاعلية",
     };
   }
 
@@ -116,12 +132,21 @@ function formatHeaderClock(date: Date) {
   return `${time} | ${year}-${month}-${day}`;
 }
 
+function todayInputValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function AppLayout() {
   const { user, isAuthenticated, isLoading, logout, message, setMessage } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [headerSearch, setHeaderSearch] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [headerClock, setHeaderClock] = useState(() => new Date());
   const location = useLocation();
@@ -186,6 +211,7 @@ export function AppLayout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const info = pageInfo(location.pathname);
+  const canExportReports = canExportDailyReports(user?.role);
 
   function handleLogout() {
     logout();
@@ -207,7 +233,7 @@ export function AppLayout() {
   return (
     <div dir="rtl" className="flex min-h-screen bg-[#171E2D] text-[#F4F7FB]">
       {message && (
-        <div className="fixed left-6 top-24 z-[60] rounded-2xl border border-blue-500/30 bg-blue-950 px-4 py-3 text-sm font-bold text-blue-100 shadow-xl">
+        <div className="fixed left-6 top-24 z-[60] rounded-2xl border border-blue-500/30 bg-blue-950 px-4 py-3 text-sm font-bold text-blue-100 -xl">
           {message}
         </div>
       )}
@@ -222,7 +248,7 @@ export function AppLayout() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[272px] flex-col border-l border-[#2F394F] bg-[#1D2435] shadow-[-16px_0_46px_rgba(4,8,18,0.34)] transition-[width,transform] duration-200 ease-out will-change-[width,transform] md:sticky md:top-0 md:translate-x-0",
+          "fixed inset-y-0 right-0 z-50 flex w-[272px] flex-col border-l border-[#2F394F] bg-[#1D2435] -[-16px_0_46px_rgba(4,8,18,0.34)] transition-[width,transform] duration-200 ease-out will-change-[width,transform] md:sticky md:top-0 md:translate-x-0",
           isSidebarCollapsed ? "md:w-[84px]" : "md:w-[272px]",
           sidebarOpen ? "translate-x-0" : "translate-x-full md:translate-x-0",
         )}
@@ -260,7 +286,7 @@ export function AppLayout() {
           {navigation.map((item) => {
             const active =
               location.pathname === item.href ||
-              (item.href !== "/" && location.pathname.startsWith(item.href));
+              (item.href !== "/" && item.href !== "/suppliers" && location.pathname.startsWith(item.href));
 
             return (
               <Link
@@ -268,11 +294,11 @@ export function AppLayout() {
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm font-bold transition-[background-color,border-color,color,box-shadow,width,padding] duration-200 ease-out hover:-translate-y-px",
+                  "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-[background-color,color,width,padding] duration-200 ease-out",
                   isSidebarCollapsed && "md:h-11 md:w-11 md:justify-center md:px-0 md:py-0",
                   active
-                    ? "border-[#6F85F2]/45 bg-[#5B73E8] text-white shadow-[0_12px_26px_rgba(91,115,232,0.26)]"
-                    : "border-transparent text-[#C3CBE0] hover:border-[#3A4560] hover:bg-[#323D56] hover:text-[#F4F7FB]",
+                    ? "bg-[#5B73E8]/15 text-white"
+                    : "text-[#C3CBE0] hover:bg-[#323D56]/40 hover:text-[#F4F7FB]",
                 )}
               >
                 <item.icon className={cn("h-5 w-5 shrink-0", active ? "text-white" : "text-[#8E9AB6] group-hover:text-[#F4F7FB]")} />
@@ -284,7 +310,7 @@ export function AppLayout() {
         </nav>
 
         <div className={cn("border-t border-[#2F394F] p-4 transition-[padding] duration-200 ease-out", isSidebarCollapsed && "md:flex md:justify-center md:px-3")}>
-          <div className={cn("rounded-2xl border border-[#3A4560] bg-[#1E2638] p-4 shadow-inner shadow-black/10 transition-[width,height,padding,border-radius] duration-200 ease-out", isSidebarCollapsed && "md:grid md:h-11 md:w-11 md:place-items-center md:rounded-xl md:p-0")}>
+          <div className={cn("rounded-2xl border border-[#3A4560] bg-[#1E2638] p-4 -inner -black/10 transition-[width,height,padding,border-radius] duration-200 ease-out", isSidebarCollapsed && "md:grid md:h-11 md:w-11 md:place-items-center md:rounded-xl md:p-0")}>
             <p className={cn("font-black text-[#F4F7FB]", isSidebarCollapsed && "md:text-center")}>{isSidebarCollapsed ? "CF" : user?.name || "مستخدم النظام"}</p>
             <p className={cn("mt-1 overflow-hidden whitespace-nowrap text-xs text-[#8E9AB6] transition-[max-height,opacity] duration-200 ease-out", isSidebarCollapsed ? "md:max-h-0 md:opacity-0" : "max-h-5 opacity-100")}>
               {roleLabels[user?.role || "viewer"]}
@@ -294,7 +320,7 @@ export function AppLayout() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex min-h-20 items-center gap-3 border-b border-[#2F394F] bg-[#1D2435]/95 px-4 shadow-[0_10px_32px_rgba(4,8,18,0.26)] backdrop-blur-xl sm:px-6 md:px-8">
+        <header className="sticky top-0 z-30 flex min-h-20 items-center gap-3 border-b border-[#2F394F] bg-[#1D2435]/95 px-4 -[0_10px_32px_rgba(4,8,18,0.26)] backdrop-blur-xl sm:px-6 md:px-8">
           <button
             className="rounded-xl border border-[#373E55] bg-[#242A39] p-2 text-[#B8C1DD] md:hidden"
             onClick={() => setSidebarOpen((value) => !value)}
@@ -308,7 +334,7 @@ export function AppLayout() {
             <p className="truncate text-sm text-[#8E9AB6]">{info.subtitle}</p>
           </div>
 
-          <div className="hidden h-10 w-72 items-center gap-2 rounded-xl border border-[#373E55] bg-[#242A39] px-3 text-[#8F99B8] shadow-inner shadow-black/5 xl:flex">
+          <div className="hidden h-10 w-72 items-center gap-2 rounded-xl border border-[#373E55] bg-[#242A39] px-3 text-[#8F99B8] -inner -black/5 xl:flex">
             <Search className="h-4 w-4" />
             <input
               value={headerSearch}
@@ -323,7 +349,7 @@ export function AppLayout() {
             />
           </div>
 
-          <div className="hidden whitespace-nowrap rounded-2xl border border-[#373E55] bg-[#242A39] px-3 py-2 text-xs font-black text-[#C3CBE0] shadow-inner shadow-black/5 lg:block" dir="ltr">
+          <div className="hidden whitespace-nowrap rounded-2xl border border-[#373E55] bg-[#242A39] px-3 py-2 text-xs font-black text-[#C3CBE0] -inner -black/5 lg:block" dir="ltr">
             {formatHeaderClock(headerClock)}
           </div>
 
@@ -336,6 +362,13 @@ export function AppLayout() {
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing ? "جاري التحديث..." : "تحديث"}
           </Button>
+
+          {canExportReports && (
+            <Button variant="secondary" onClick={() => setReportOpen(true)}>
+              <FileDown className="h-4 w-4" />
+              تصدير تقرير PDF
+            </Button>
+          )}
 
           <button
             className="relative rounded-xl border border-[#373E55] bg-[#242A39] p-2 text-[#B8C1DD] hover:bg-[#343B52] hover:text-[#F3F6F9]"
@@ -351,7 +384,7 @@ export function AppLayout() {
           </button>
 
           {notificationsOpen && (
-            <div className="absolute left-4 top-20 z-50 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-[#373E55] bg-[#1E2638] shadow-[0_22px_60px_rgba(0,0,0,0.38)]">
+            <div className="absolute left-4 top-20 z-50 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-[#373E55] bg-[#1E2638] -[0_22px_60px_rgba(0,0,0,0.38)]">
               <div className="border-b border-[#30364A] px-4 py-3">
                 <p className="font-black text-white">الإشعارات</p>
                 <p className="text-xs text-[#8E9AB6]">آخر التحديثات المهمة في النظام</p>
@@ -393,6 +426,13 @@ export function AppLayout() {
           </Button>
         </header>
 
+        {reportOpen && (
+          <DailyReportModal
+            onClose={() => setReportOpen(false)}
+            setMessage={setMessage}
+          />
+        )}
+
         <main className="p-4 sm:p-6 lg:p-8 xl:p-10">
           <Outlet />
         </main>
@@ -400,6 +440,130 @@ export function AppLayout() {
     </div>
   );
 }
+
+function DailyReportModal({
+  onClose,
+  setMessage,
+}: {
+  onClose: () => void;
+  setMessage: (message: string) => void;
+}) {
+  const [date, setDate] = useState(todayInputValue());
+  const [sections, setSections] = useState<DailyReportSection[]>(
+    dailyReportSections.map((section) => section.id),
+  );
+  const [busy, setBusy] = useState<"download" | "email" | null>(null);
+  const [error, setError] = useState("");
+
+  function toggleSection(section: DailyReportSection) {
+    setSections((current) => (
+      current.includes(section)
+        ? current.filter((item) => item !== section)
+        : [...current, section]
+    ));
+  }
+
+  async function run(action: "download" | "email") {
+    if (sections.length === 0) {
+      setError("اختر قسمًا واحدًا على الأقل للتقرير");
+      return;
+    }
+
+    setBusy(action);
+    setError("");
+
+    try {
+      if (action === "download") {
+        await downloadDailyReportPdf({ date, sections });
+        setMessage("تم تحميل تقرير PDF");
+      } else {
+        await sendDailyReportEmail({ date, sections });
+        setMessage("تم إرسال التقرير بالإيميل");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر تنفيذ العملية");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Modal title="تصدير تقرير العمليات اليومي" onClose={onClose}>
+      <div dir="rtl" className="space-y-5">
+        {error && (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm font-bold text-rose-200">
+            {error}
+          </div>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="تاريخ التقرير" required>
+            <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          </Field>
+          <div className="rounded-2xl border border-[#3A4560] bg-[#1E2638] p-4">
+            <p className="text-sm font-black text-white">نطاق التقرير</p>
+            <p className="mt-2 text-sm leading-7 text-[#9FB2D9]">
+              يتم احتساب اليوم من 00:00 إلى 23:59 بتوقيت السعودية.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-[#3A4560] bg-[#1E2638] p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-black text-white">أقسام التقرير</p>
+              <p className="mt-1 text-sm text-[#8E9AB6]">اختر المحتوى الذي سيظهر في ملف PDF.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setSections(dailyReportSections.map((section) => section.id))}
+              >
+                تحديد الكل
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setSections([])}>
+                إلغاء الكل
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-2">
+            {dailyReportSections.map((section) => (
+              <label
+                key={section.id}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#2F394F] bg-[#172033] px-3 py-3 text-sm font-bold text-[#F4F7FB] transition hover:bg-[#24324D]"
+              >
+                <input
+                  type="checkbox"
+                  checked={sections.includes(section.id)}
+                  onChange={() => toggleSection(section.id)}
+                  className="h-4 w-4 accent-[#5B73E8]"
+                />
+                <span>{section.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            إغلاق
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => run("email")} disabled={busy !== null}>
+            <FileText className="h-4 w-4" />
+            {busy === "email" ? "جاري الإرسال..." : "إرسال التقرير بالإيميل"}
+          </Button>
+          <Button type="button" onClick={() => run("download")} disabled={busy !== null}>
+            <FileDown className="h-4 w-4" />
+            {busy === "download" ? "جاري التحميل..." : "تحميل PDF"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 
 
 

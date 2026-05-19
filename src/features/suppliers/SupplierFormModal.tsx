@@ -22,7 +22,13 @@ export function SupplierFormModal({
     name_en: supplier?.name_en || "",
     cr_number: supplier?.cr_number || "",
     vat_number: supplier?.vat_number || "",
+    country: supplier?.country || "",
     city: supplier?.city || "",
+    district: supplier?.district || "",
+    address: supplier?.address || "",
+    google_maps_url: supplier?.google_maps_url || "",
+    latitude: supplier?.latitude === null || supplier?.latitude === undefined ? "" : String(supplier.latitude),
+    longitude: supplier?.longitude === null || supplier?.longitude === undefined ? "" : String(supplier.longitude),
     categories: parseCategories(supplier?.category),
     status: supplier?.status || "Pending",
     notes: supplier?.notes || "",
@@ -37,7 +43,13 @@ export function SupplierFormModal({
         name_en: form.name_en.trim() || form.name_ar.trim(),
         cr_number: form.cr_number.trim() || null,
         vat_number: form.vat_number.trim() || null,
+        country: form.country.trim() || null,
         city: form.city.trim() || null,
+        district: form.district.trim() || null,
+        address: form.address.trim() || null,
+        google_maps_url: form.google_maps_url.trim() || null,
+        latitude: form.latitude.trim() ? Number(form.latitude) : null,
+        longitude: form.longitude.trim() ? Number(form.longitude) : null,
         category: serializeCategories(form.categories),
         status: form.status,
         notes: form.notes.trim() || null,
@@ -47,6 +59,8 @@ export function SupplierFormModal({
     },
     onSuccess: (savedSupplier) => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
 
       if (supplier?.id) {
         queryClient.invalidateQueries({ queryKey: ["supplier", supplier.id] });
@@ -80,6 +94,19 @@ export function SupplierFormModal({
 
     if (!form.status) {
       setError("الحالة مطلوبة");
+      return;
+    }
+
+    const latitude = form.latitude.trim() ? Number(form.latitude) : null;
+    const longitude = form.longitude.trim() ? Number(form.longitude) : null;
+
+    if (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+      setError("خط العرض يجب أن يكون بين -90 و 90");
+      return;
+    }
+
+    if (longitude !== null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+      setError("خط الطول يجب أن يكون بين -180 و 180");
       return;
     }
 
@@ -197,6 +224,80 @@ export function SupplierFormModal({
               placeholder="اكتب أي ملاحظات داخلية عن المورد"
             />
           </Field>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-black text-white">موقع المورد</h3>
+            <p className="mt-2 text-xs leading-6 text-slate-400">
+              لإظهار المورد على الخريطة، أدخل خط العرض وخط الطول. رابط Google Maps اختياري.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="الدولة">
+              <Input
+                value={form.country}
+                onChange={(event) => setForm({ ...form, country: event.target.value })}
+                placeholder="مثال: السعودية"
+              />
+            </Field>
+
+            <Field label="المدينة">
+              <Input
+                value={form.city}
+                onChange={(event) => setForm({ ...form, city: event.target.value })}
+                placeholder="مثال: الرياض"
+              />
+            </Field>
+
+            <Field label="الحي">
+              <Input
+                value={form.district}
+                onChange={(event) => setForm({ ...form, district: event.target.value })}
+                placeholder="مثال: العليا"
+              />
+            </Field>
+
+            <Field label="العنوان">
+              <Input
+                value={form.address}
+                onChange={(event) => setForm({ ...form, address: event.target.value })}
+                placeholder="الشارع أو وصف الموقع"
+              />
+            </Field>
+
+            <Field label="رابط Google Maps">
+              <Input
+                dir="ltr"
+                value={form.google_maps_url}
+                onChange={(event) => setForm({ ...form, google_maps_url: event.target.value })}
+                placeholder="https://maps.google.com/..."
+              />
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="خط العرض Latitude">
+                <Input
+                  dir="ltr"
+                  inputMode="decimal"
+                  value={form.latitude}
+                  onChange={(event) => setForm({ ...form, latitude: event.target.value })}
+                  placeholder="24.7136"
+                />
+              </Field>
+
+              <Field label="خط الطول Longitude">
+                <Input
+                  dir="ltr"
+                  inputMode="decimal"
+                  value={form.longitude}
+                  onChange={(event) => setForm({ ...form, longitude: event.target.value })}
+                  placeholder="46.6753"
+                />
+              </Field>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

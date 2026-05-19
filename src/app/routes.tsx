@@ -7,6 +7,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 
 const DashboardPage = lazy(() => import("../features/dashboard/DashboardPage").then((module) => ({ default: module.DashboardPage })));
 const SuppliersPage = lazy(() => import("../features/suppliers/SuppliersPage").then((module) => ({ default: module.SuppliersPage })));
+const SuppliersMapPage = lazy(() => import("../features/suppliers/SuppliersMapPage").then((module) => ({ default: module.SuppliersMapPage })));
 const RequestTicketsPage = lazy(() => import("../features/requestTickets/RequestTicketsPage").then((module) => ({ default: module.RequestTicketsPage })));
 const SupplierPaymentRequestsPage = lazy(() => import("../features/supplierPaymentRequests/SupplierPaymentRequestsPage").then((module) => ({ default: module.SupplierPaymentRequestsPage })));
 const CompanyDocumentsPage = lazy(() => import("../features/companyDocuments/CompanyDocumentsPage").then((module) => ({ default: module.CompanyDocumentsPage })));
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: lazyElement(DashboardPage) },
       { path: "suppliers", element: lazyElement(SuppliersPage) },
+      { path: "suppliers/map", element: lazyElement(SuppliersMapPage) },
       { path: "suppliers/:id", element: lazyElement(SupplierProfilePage) },
       { path: "request-tickets", element: lazyElement(RequestTicketsPage) },
       { path: "supplier-payment-requests", element: lazyElement(SupplierPaymentRequestsPage) },

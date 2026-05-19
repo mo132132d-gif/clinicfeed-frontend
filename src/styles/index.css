@@ -1,4 +1,5 @@
 @import './fonts.css';
+@import 'leaflet/dist/leaflet.css';
 @import 'tailwindcss';
 
 :root {
@@ -121,6 +122,42 @@ input[type="date"] {
 
 input[type="date"]::-webkit-datetime-edit {
   direction: ltr !important;
+}
+
+.clinicfeed-map .leaflet-container {
+  min-height: 100%;
+  background: #172033;
+  color: #f4f7fb;
+  font-family: 'Cairo', system-ui, sans-serif;
+}
+
+.clinicfeed-map .leaflet-tile-pane {
+  filter: saturate(0.82) brightness(0.72) contrast(1.08);
+}
+
+.clinicfeed-map .leaflet-control-zoom a,
+.clinicfeed-map .leaflet-control-attribution {
+  border-color: #3a4560;
+  background: #1e2638;
+  color: #c3cbe0;
+}
+
+.clinicfeed-map .leaflet-popup-content-wrapper,
+.clinicfeed-map .leaflet-popup-tip {
+  background: #1e2638;
+  color: #f4f7fb;
+  border: 1px solid #3a4560;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+}
+
+.clinicfeed-map .leaflet-popup-content {
+  margin: 0;
+  min-width: 190px;
+  font-family: 'Cairo', system-ui, sans-serif;
+}
+
+.clinicfeed-map .leaflet-container a.leaflet-popup-close-button {
+  color: #c3cbe0;
 }
 
 body,

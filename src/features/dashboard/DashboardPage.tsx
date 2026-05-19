@@ -337,7 +337,7 @@ export function DashboardPage() {
               لوحة متابعة تشغيلية مباشرة
             </div>
             <h2 className="mt-4 text-3xl font-black tracking-tight text-[#F3F6F9] md:text-4xl">نظرة عامة على عمليات ClinicFeed</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#B8C1DD]">مؤشرات الطلبات، الموردين، المستندات والتنبيهات الحرجة في واجهة Dashboard أكثر وضوحًا وقربًا.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#B8C1DD]">عرض مختصر لأهم مؤشرات التشغيل والطلبات والموردين.</p>
           </div>
           <div className="grid min-w-[280px] grid-cols-2 gap-3">
             <MetricPill label="إيرادات الموردين" value={performance.length ? formatCurrency(revenue) : "-"} color="#34C38F" />

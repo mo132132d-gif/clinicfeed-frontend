@@ -1,8 +1,9 @@
 import { FormEvent, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Archive, ArrowRight, Copy, Download, Edit2, Plus, Save, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Archive, ArrowRight, Copy, Download, Edit2, ExternalLink, MapPinned, Plus, Save, Trash2, Upload } from "lucide-react";
+import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
 import { allowedFileExtensions, contractStatuses, documentTypes, maxFileSize } from "../../lib/constants";
 import { canArchiveSuppliers, canEditPerformance, canManageSuppliers, canUploadFiles } from "../../lib/permissions";
 import { documentTypeLabel, expiryState, formatCurrency, formatDate, formatDateTime, formatNumber, parseCategories, percentage, serviceScoreLabel } from "../../lib/format";
@@ -20,13 +21,14 @@ import {
   listDocuments,
   listSupplierActivity,
   markPrimaryContact,
+  permanentlyDeleteSupplier,
   updateContact,
   updateContract,
   updateDocument,
   updateSupplierPerformance,
 } from "../../services/supplierService";
 import { useAuth } from "../auth/AuthProvider";
-import type { Contact, Contract, SupplierDocument, SupplierPerformance } from "../../types";
+import type { Contact, Contract, Supplier, SupplierDocument, SupplierPerformance } from "../../types";
 import { Button, Card, EmptyState, ExpiryBadge, Field, Input, LoadingState, Modal, Select, StatusBadge, Textarea } from "../../components/shared/Primitives";
 import { PhoneNumberInput } from "../../components/shared/PhoneNumberInput";
 import { SupplierFormModal } from "./SupplierFormModal";
@@ -87,9 +89,34 @@ function documentRisk(documents: SupplierDocument[]) {
   return null;
 }
 
+function coordinate(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function supplierMapPosition(supplier?: { latitude?: unknown; longitude?: unknown } | null): [number, number] | null {
+  const latitude = coordinate(supplier?.latitude);
+  const longitude = coordinate(supplier?.longitude);
+
+  if (latitude === null || longitude === null) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  return [latitude, longitude];
+}
+
+function supplierAddressSummary(supplier: {
+  address?: string | null;
+  district?: string | null;
+  city?: string | null;
+  country?: string | null;
+}) {
+  return [supplier.address, supplier.district, supplier.city, supplier.country].filter(Boolean).join("، ");
+}
+
 export function SupplierProfilePage() {
   const { id = "" } = useParams();
   const { user, setMessage } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [modal, setModal] = useState<null | "supplier" | "contact" | "contract" | "document" | "performance">(null);
@@ -141,6 +168,18 @@ export function SupplierProfilePage() {
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشلت الأرشفة"),
   });
 
+  const permanentDeleteMutation = useMutation({
+    mutationFn: permanentlyDeleteSupplier,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+      setMessage("تم حذف المورد نهائيًا");
+      navigate("/suppliers");
+    },
+    onError: (err) => setMessage(err instanceof Error ? err.message : "فشل الحذف النهائي"),
+  });
+
   const deleteDocumentMutation = useMutation({
     mutationFn: deleteDocument,
     onSuccess: () => {
@@ -159,6 +198,17 @@ export function SupplierProfilePage() {
 
     if (window.confirm("هل تريد أرشفة المورد؟")) {
       archiveMutation.mutate(id);
+    }
+  }
+
+  function confirmPermanentDeleteSupplier() {
+    if (!canManageSuppliers(user?.role)) {
+      setMessage("ليس لديك صلاحية لتنفيذ هذا الإجراء");
+      return;
+    }
+
+    if (window.confirm("سيتم حذف المورد نهائيًا من المنصة ولا يمكن التراجع. هل أنت متأكد؟")) {
+      permanentDeleteMutation.mutate(id);
     }
   }
 
@@ -203,9 +253,12 @@ export function SupplierProfilePage() {
 
       <Card className="p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-black text-white">{supplier.name_ar}</h1>
+          <div className="text-right">
+            <div className="flex flex-wrap items-start gap-3">
+              <div className="min-w-0">
+                <h1 className="truncate text-3xl font-black text-white">{supplier.name_ar}</h1>
+                <p className="mt-2 truncate text-right text-[#8F99B8]">{supplier.name_en || "-"}</p>
+              </div>
               <StatusBadge status={supplier.status} />
               {risk && (
                 <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black ${
@@ -218,8 +271,7 @@ export function SupplierProfilePage() {
                 </span>
               )}
             </div>
-            <p className="mt-2 text-[#8F99B8]" dir="ltr">{supplier.name_en || "-"}</p>
-            <p className="mt-3 text-sm text-[#B8C1DD]">معرّف المورد: <span dir="ltr">{supplier.id}</span></p>
+            <p className="mt-3 text-sm text-[#B8C1DD]">معرف المورد: <span dir="ltr">{supplier.supplier_code || "غير محدد"}</span></p>
             {(canManageSuppliers(user?.role) || canArchiveSuppliers(user?.role)) && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {canManageSuppliers(user?.role) && (
@@ -233,6 +285,13 @@ export function SupplierProfilePage() {
                   <Button variant="danger" onClick={confirmArchiveSupplier} disabled={archiveMutation.isPending}>
                     <Archive className="h-4 w-4" />
                     أرشفة المورد
+                  </Button>
+                )}
+
+                {canManageSuppliers(user?.role) && (
+                  <Button variant="danger" onClick={confirmPermanentDeleteSupplier} disabled={permanentDeleteMutation.isPending}>
+                    <Trash2 className="h-4 w-4" />
+                    حذف نهائي
                   </Button>
                 )}
               </div>
@@ -269,7 +328,7 @@ export function SupplierProfilePage() {
             <div className="grid gap-4 md:grid-cols-2">
               <InfoBlock label="البريد الإلكتروني" value={<EmailLink email={primaryContact?.email} />} />
               <InfoBlock label="رقم الجوال" value={<PhoneActionMenu phone={primaryContact?.phone || primaryContact?.whatsapp} />} />
-              <InfoBlock label="العنوان" value={supplier.city} />
+              <InfoBlock label="العنوان" value={supplierAddressSummary(supplier) || supplier.city} />
               <InfoBlock label="الموقع الإلكتروني" value="-" />
             </div>
           </Card>
@@ -277,6 +336,7 @@ export function SupplierProfilePage() {
             <h2 className="mb-4 text-lg font-black text-white">الملاحظات</h2>
             <p className="min-h-32 rounded-xl border border-[#373E55] bg-[#242A39] p-4 text-[#B8C1DD]">{supplier.notes || "لا توجد ملاحظات"}</p>
           </Card>
+          <SupplierLocationCard supplier={supplier} />
         </div>
       )}
 
@@ -364,6 +424,57 @@ export function SupplierProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+function SupplierLocationCard({ supplier }: { supplier: Supplier }) {
+  const position = supplierMapPosition(supplier);
+  const address = supplierAddressSummary(supplier);
+
+  return (
+    <Card className="p-5 xl:col-span-2">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <MapPinned className="h-5 w-5 text-[#9FB2FF]" />
+            <h2 className="text-lg font-black text-white">موقع المورد</h2>
+          </div>
+          <p className="mt-2 text-sm leading-7 text-[#B8C1DD]">
+            {address || "لا توجد بيانات عنوان محفوظة لهذا المورد"}
+          </p>
+        </div>
+
+        {supplier.google_maps_url && (
+          <Button
+            variant="secondary"
+            onClick={() => window.open(supplier.google_maps_url || "", "_blank", "noopener,noreferrer")}
+          >
+            <ExternalLink className="h-4 w-4" />
+            فتح في Google Maps
+          </Button>
+        )}
+      </div>
+
+      {position ? (
+        <div className="clinicfeed-map h-72 overflow-hidden rounded-2xl border border-[#373E55]">
+          <MapContainer center={position} zoom={13} scrollWheelZoom={false} className="h-full w-full">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <CircleMarker
+              center={position}
+              radius={10}
+              pathOptions={{ color: "#C8D2FF", fillColor: "#5B73E8", fillOpacity: 0.9, weight: 2 }}
+            />
+          </MapContainer>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-[#3A4560] bg-[#242A39] p-6 text-center text-sm font-bold text-[#8E9AB6]">
+          لم يتم تحديد موقع المورد على الخريطة بعد
+        </div>
+      )}
+    </Card>
   );
 }
 

@@ -1,13 +1,17 @@
 import { apiRequest } from "./api";
-import { unwrapData } from "../lib/format";
+import { normalizeList, unwrapData } from "../lib/format";
 import type { Notification, NotificationPreference } from "../types";
 
-export async function listNotifications(_limit = 10) {
-  return [] as Notification[];
+export async function listNotifications(limit = 10) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  const payload = await apiRequest<unknown>(`/notifications?${query.toString()}`);
+  return normalizeList<Notification>(payload);
 }
 
 export async function getUnreadNotificationCount() {
-  return 0;
+  const payload = await apiRequest<unknown>("/notifications/unread-count");
+  const data = unwrapData<{ count?: number }>(payload);
+  return Number(data?.count || 0);
 }
 
 export async function markNotificationRead(id: string) {

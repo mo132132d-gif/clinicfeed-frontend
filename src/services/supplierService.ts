@@ -56,6 +56,12 @@ export async function archiveSupplier(id: string) {
   return unwrapData<Supplier>(payload);
 }
 
+export async function permanentlyDeleteSupplier(id: string) {
+  return apiRequest<{ data: { id: string; supplier_code?: string | null; deleted: boolean } }>(`/suppliers/${id}/permanent`, {
+    method: "DELETE",
+  });
+}
+
 export async function listContacts(supplierId: string) {
   const payload = await apiRequest<unknown>(
     `/contacts?supplier_id=${encodeURIComponent(supplierId)}&limit=500`

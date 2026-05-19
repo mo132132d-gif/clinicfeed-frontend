@@ -80,7 +80,7 @@ export function Layout() {
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+          className="fixed inset-0 z-40  lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -121,7 +121,7 @@ export function Layout() {
                 className={cn(
                   "group flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-primary-500 text-white shadow-sm"
+                    ? "bg-primary-500 text-white "
                     : "text-slate-300 hover:bg-brand-800 hover:text-white"
                 )}
               >
@@ -151,7 +151,7 @@ export function Layout() {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-20 flex-shrink-0 items-center gap-x-4 border-b border-slate-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-900">
+        <header className="flex h-20 flex-shrink-0 items-center gap-x-4 border-b border-slate-200 bg-white px-4  sm:gap-x-6 sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-900">
           <button
             type="button"
             className="-m-2.5 p-2.5 text-slate-700 lg:hidden dark:text-slate-200"
@@ -217,5 +217,6 @@ export function Layout() {
     </div>
   );
 }
+
 
 

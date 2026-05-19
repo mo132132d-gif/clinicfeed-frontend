@@ -19,6 +19,7 @@ export interface User {
 
 export interface Supplier {
   id: string;
+  supplier_code?: string | null;
   name_ar: string;
   name_en?: string | null;
   name?: string | null;
@@ -29,7 +30,13 @@ export interface Supplier {
   contact_email?: string | null;
   cr_number?: string | null;
   vat_number?: string | null;
+  country?: string | null;
   city?: string | null;
+  district?: string | null;
+  address?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  google_maps_url?: string | null;
   category?: string | null;
   status: SupplierStatus;
   notes?: string | null;
@@ -118,10 +125,13 @@ export interface Notification {
   id: string;
   notification_type?: string | null;
   type?: string | null;
+  category?: string | null;
   title?: string | null;
   message?: string | null;
   actor_name?: string | null;
   user_name?: string | null;
+  reference_type?: string | null;
+  reference_id?: string | null;
   is_read?: boolean | null;
   read_at?: string | null;
   created_at?: string | null;

@@ -490,6 +490,8 @@ export function RequestTicketsPage() {
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
       queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardRequestTicketsSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
       setMessage("تم تحديث حالة الطلب");
     },
     onError: (err) => setMessage(err instanceof Error ? err.message : "فشل تحديث حالة الطلب"),
@@ -1001,6 +1003,8 @@ function RequestTicketModal({ ticket, onClose }: { ticket?: RequestTicket | null
       queryClient.invalidateQueries({ queryKey: ["requestTickets"] });
       queryClient.invalidateQueries({ queryKey: ["requestTicketsSummary"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardRequestTicketsSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
       setMessage(ticket ? "تم تحديث التذكرة" : "تم إنشاء التذكرة");
       onClose();
     },
