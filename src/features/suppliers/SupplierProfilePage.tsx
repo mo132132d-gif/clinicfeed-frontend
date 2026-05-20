@@ -7,6 +7,7 @@ import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
 import { allowedFileExtensions, contractStatuses, documentTypes, maxFileSize } from "../../lib/constants";
 import { canArchiveSuppliers, canEditPerformance, canManageSuppliers, canUploadFiles } from "../../lib/permissions";
 import { documentTypeLabel, expiryState, formatCurrency, formatDate, formatDateTime, formatNumber, parseCategories, percentage, serviceScoreLabel } from "../../lib/format";
+import { getGoogleMapsPreviewUrl, parseLocationInput } from "../../lib/location";
 import {
   archiveSupplier,
   createContact,
@@ -95,22 +96,37 @@ function coordinate(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function supplierMapPosition(supplier?: { latitude?: unknown; longitude?: unknown } | null): [number, number] | null {
+function supplierMapPosition(supplier?: { latitude?: unknown; longitude?: unknown; google_maps_url?: unknown } | null): [number, number] | null {
   const latitude = coordinate(supplier?.latitude);
   const longitude = coordinate(supplier?.longitude);
 
-  if (latitude === null || longitude === null) return null;
-  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
-  return [latitude, longitude];
+  if (latitude !== null && longitude !== null) {
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+    return [latitude, longitude];
+  }
+
+  if (typeof supplier?.google_maps_url === 'string') {
+    try {
+      const parsed = parseLocationInput(supplier.google_maps_url);
+      if (parsed) {
+        return [parsed.latitude, parsed.longitude];
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 function supplierAddressSummary(supplier: {
   address?: string | null;
   district?: string | null;
+  region?: string | null;
   city?: string | null;
   country?: string | null;
 }) {
-  return [supplier.address, supplier.district, supplier.city, supplier.country].filter(Boolean).join("، ");
+  return [supplier.address, supplier.district, supplier.region, supplier.city, supplier.country].filter(Boolean).join("، ");
 }
 
 export function SupplierProfilePage() {
@@ -301,7 +317,7 @@ export function SupplierProfilePage() {
             <Info label="المدينة" value={supplier.city} />
             <Info label="السجل التجاري" value={supplier.cr_number} ltr />
             <Info label="الرقم الضريبي" value={supplier.vat_number} ltr />
-            <Info label="التصنيفات" value={parseCategories(supplier.category).join(", ")} />
+            <Info label="التصنيفات" value={parseCategories(supplier.categories ?? supplier.category).join(", ")} />
             <Info label="آخر تحديث" value={formatDate(supplier.updated_at || supplier.created_at)} />
           </div>
         </div>
@@ -444,15 +460,25 @@ function SupplierLocationCard({ supplier }: { supplier: Supplier }) {
           </p>
         </div>
 
-        {supplier.google_maps_url && (
-          <Button
-            variant="secondary"
-            onClick={() => window.open(supplier.google_maps_url || "", "_blank", "noopener,noreferrer")}
-          >
-            <ExternalLink className="h-4 w-4" />
-            فتح في Google Maps
-          </Button>
-        )}
+        {(() => {
+          const previewUrl = supplier.google_maps_url
+            ? getGoogleMapsPreviewUrl(supplier.google_maps_url)
+            : supplierMapPosition(supplier)
+            ? getGoogleMapsPreviewUrl(`${supplier.latitude},${supplier.longitude}`)
+            : null;
+
+          if (!previewUrl) return null;
+
+          return (
+            <Button
+              variant="secondary"
+              onClick={() => window.open(previewUrl, "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink className="h-4 w-4" />
+              فتح في Google Maps
+            </Button>
+          );
+        })()}
       </div>
 
       {position ? (
@@ -479,11 +505,11 @@ function SupplierLocationCard({ supplier }: { supplier: Supplier }) {
 }
 
 function Info({ label, value, ltr = false }: { label: string; value?: string | null; ltr?: boolean }) {
-  return <div className="rounded-xl border border-[#373E55] bg-[#242A39] p-3"><p className="text-xs text-[#8F99B8]">{label}</p><p className="mt-1 font-bold text-[#F3F6F9]" dir={ltr ? "ltr" : "rtl"}>{value || "-"}</p></div>;
+  return <div className="rounded-xl border border-[#373E55] bg-[#242A39] p-3"><p className="text-xs text-[#8F99B8]">{label}</p><p className="mt-1 font-bold text-[#F3F6F9]" dir={ltr ? "ltr" : "rtl"}>{value || "غير محدد"}</p></div>;
 }
 
 function InfoBlock({ label, value }: { label: string; value?: ReactNode }) {
-  return <div className="rounded-xl border border-[#373E55] bg-[#242A39] p-4"><p className="text-sm text-[#8F99B8]">{label}</p><p className="mt-2 font-bold text-[#F3F6F9]">{value || "-"}</p></div>;
+  return <div className="rounded-xl border border-[#373E55] bg-[#242A39] p-4"><p className="text-sm text-[#8F99B8]">{label}</p><p className="mt-2 font-bold text-[#F3F6F9]">{value || "غير محدد"}</p></div>;
 }
 
 function normalizeWhatsAppNumber(phone: string) {

@@ -25,12 +25,7 @@ import { roleLabels } from "../../lib/constants";
 import { canExportDailyReports, canManageUsers } from "../../lib/permissions";
 import { Button, Field, Input, Modal, cn } from "../shared/Primitives";
 import { getUnreadNotificationCount, listNotifications, markNotificationRead } from "../../services/notificationService";
-import {
-  dailyReportSections,
-  downloadDailyReportPdf,
-  sendDailyReportEmail,
-  type DailyReportSection,
-} from "../../services/reportService";
+import SupplierReportModal from "../../features/reports/SupplierReportModal";
 
 const baseNavigation = [
   { name: "لوحة التحكم", href: "/", icon: LayoutDashboard },
@@ -366,7 +361,7 @@ export function AppLayout() {
           {canExportReports && (
             <Button variant="secondary" onClick={() => setReportOpen(true)}>
               <FileDown className="h-4 w-4" />
-              تصدير تقرير PDF
+              تصدير تقرير الموردين
             </Button>
           )}
 
@@ -427,7 +422,7 @@ export function AppLayout() {
         </header>
 
         {reportOpen && (
-          <DailyReportModal
+          <SupplierReportModal
             onClose={() => setReportOpen(false)}
             setMessage={setMessage}
           />
@@ -441,128 +436,7 @@ export function AppLayout() {
   );
 }
 
-function DailyReportModal({
-  onClose,
-  setMessage,
-}: {
-  onClose: () => void;
-  setMessage: (message: string) => void;
-}) {
-  const [date, setDate] = useState(todayInputValue());
-  const [sections, setSections] = useState<DailyReportSection[]>(
-    dailyReportSections.map((section) => section.id),
-  );
-  const [busy, setBusy] = useState<"download" | "email" | null>(null);
-  const [error, setError] = useState("");
-
-  function toggleSection(section: DailyReportSection) {
-    setSections((current) => (
-      current.includes(section)
-        ? current.filter((item) => item !== section)
-        : [...current, section]
-    ));
-  }
-
-  async function run(action: "download" | "email") {
-    if (sections.length === 0) {
-      setError("اختر قسمًا واحدًا على الأقل للتقرير");
-      return;
-    }
-
-    setBusy(action);
-    setError("");
-
-    try {
-      if (action === "download") {
-        await downloadDailyReportPdf({ date, sections });
-        setMessage("تم تحميل تقرير PDF");
-      } else {
-        await sendDailyReportEmail({ date, sections });
-        setMessage("تم إرسال التقرير بالإيميل");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تنفيذ العملية");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  return (
-    <Modal title="تصدير تقرير العمليات اليومي" onClose={onClose}>
-      <div dir="rtl" className="space-y-5">
-        {error && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm font-bold text-rose-200">
-            {error}
-          </div>
-        )}
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="تاريخ التقرير" required>
-            <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-          </Field>
-          <div className="rounded-2xl border border-[#3A4560] bg-[#1E2638] p-4">
-            <p className="text-sm font-black text-white">نطاق التقرير</p>
-            <p className="mt-2 text-sm leading-7 text-[#9FB2D9]">
-              يتم احتساب اليوم من 00:00 إلى 23:59 بتوقيت السعودية.
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-[#3A4560] bg-[#1E2638] p-4">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-black text-white">أقسام التقرير</p>
-              <p className="mt-1 text-sm text-[#8E9AB6]">اختر المحتوى الذي سيظهر في ملف PDF.</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setSections(dailyReportSections.map((section) => section.id))}
-              >
-                تحديد الكل
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setSections([])}>
-                إلغاء الكل
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-2">
-            {dailyReportSections.map((section) => (
-              <label
-                key={section.id}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#2F394F] bg-[#172033] px-3 py-3 text-sm font-bold text-[#F4F7FB] transition hover:bg-[#24324D]"
-              >
-                <input
-                  type="checkbox"
-                  checked={sections.includes(section.id)}
-                  onChange={() => toggleSection(section.id)}
-                  className="h-4 w-4 accent-[#5B73E8]"
-                />
-                <span>{section.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            إغلاق
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => run("email")} disabled={busy !== null}>
-            <FileText className="h-4 w-4" />
-            {busy === "email" ? "جاري الإرسال..." : "إرسال التقرير بالإيميل"}
-          </Button>
-          <Button type="button" onClick={() => run("download")} disabled={busy !== null}>
-            <FileDown className="h-4 w-4" />
-            {busy === "download" ? "جاري التحميل..." : "تحميل PDF"}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
+/* DailyReportModal removed — replaced by SupplierReportModal component in features/reports */
 
 
 

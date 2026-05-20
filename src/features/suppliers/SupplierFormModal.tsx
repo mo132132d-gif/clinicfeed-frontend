@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { categoryOptions, supplierStatuses } from "../../lib/constants";
 import { parseCategories, serializeCategories } from "../../lib/format";
+import { parseLocationInput } from "../../lib/location";
 import { createSupplier, updateSupplier } from "../../services/supplierService";
 import type { Supplier } from "../../types";
 import { Button, Field, Input, Modal, Select, Textarea } from "../../components/shared/Primitives";
@@ -23,13 +24,14 @@ export function SupplierFormModal({
     cr_number: supplier?.cr_number || "",
     vat_number: supplier?.vat_number || "",
     country: supplier?.country || "",
+    region: supplier?.region || "",
     city: supplier?.city || "",
     district: supplier?.district || "",
     address: supplier?.address || "",
     google_maps_url: supplier?.google_maps_url || "",
     latitude: supplier?.latitude === null || supplier?.latitude === undefined ? "" : String(supplier.latitude),
     longitude: supplier?.longitude === null || supplier?.longitude === undefined ? "" : String(supplier.longitude),
-    categories: parseCategories(supplier?.category),
+    categories: parseCategories(supplier?.categories ?? supplier?.category),
     status: supplier?.status || "Pending",
     notes: supplier?.notes || "",
   });
@@ -37,24 +39,7 @@ export function SupplierFormModal({
   const [error, setError] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () => {
-      const payload = {
-        name_ar: form.name_ar.trim(),
-        name_en: form.name_en.trim() || form.name_ar.trim(),
-        cr_number: form.cr_number.trim() || null,
-        vat_number: form.vat_number.trim() || null,
-        country: form.country.trim() || null,
-        city: form.city.trim() || null,
-        district: form.district.trim() || null,
-        address: form.address.trim() || null,
-        google_maps_url: form.google_maps_url.trim() || null,
-        latitude: form.latitude.trim() ? Number(form.latitude) : null,
-        longitude: form.longitude.trim() ? Number(form.longitude) : null,
-        category: serializeCategories(form.categories),
-        status: form.status,
-        notes: form.notes.trim() || null,
-      } as Partial<Supplier>;
-
+    mutationFn: (payload: Partial<Supplier>) => {
       return supplier ? updateSupplier(supplier.id, payload) : createSupplier(payload);
     },
     onSuccess: (savedSupplier) => {
@@ -97,8 +82,21 @@ export function SupplierFormModal({
       return;
     }
 
-    const latitude = form.latitude.trim() ? Number(form.latitude) : null;
-    const longitude = form.longitude.trim() ? Number(form.longitude) : null;
+    let latitude = form.latitude.trim() ? Number(form.latitude) : null;
+    let longitude = form.longitude.trim() ? Number(form.longitude) : null;
+
+    if (form.google_maps_url.trim() && latitude === null && longitude === null) {
+      try {
+        const parsedLocation = parseLocationInput(form.google_maps_url.trim());
+        if (parsedLocation) {
+          latitude = parsedLocation.latitude;
+          longitude = parsedLocation.longitude;
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "فشل تحليل الموقع. يرجى التحقق من الإدخال");
+        return;
+      }
+    }
 
     if (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
       setError("خط العرض يجب أن يكون بين -90 و 90");
@@ -110,7 +108,26 @@ export function SupplierFormModal({
       return;
     }
 
-    mutation.mutate();
+    const payload: Partial<Supplier> = {
+      name_ar: form.name_ar.trim(),
+      name_en: form.name_en.trim() || form.name_ar.trim(),
+      cr_number: form.cr_number.trim() || null,
+      vat_number: form.vat_number.trim() || null,
+      country: form.country.trim() || null,
+      region: form.region.trim() || null,
+      city: form.city.trim() || null,
+      district: form.district.trim() || null,
+      address: form.address.trim() || null,
+      google_maps_url: form.google_maps_url.trim() || null,
+      latitude: latitude !== null ? latitude : null,
+      longitude: longitude !== null ? longitude : null,
+      category: serializeCategories(form.categories),
+      categories: form.categories,
+      status: form.status,
+      notes: form.notes.trim() || null,
+    };
+
+    mutation.mutate(payload);
   }
 
   return (
@@ -243,6 +260,14 @@ export function SupplierFormModal({
               />
             </Field>
 
+            <Field label="المنطقة">
+              <Input
+                value={form.region}
+                onChange={(event) => setForm({ ...form, region: event.target.value })}
+                placeholder="مثال: الرياض"
+              />
+            </Field>
+
             <Field label="المدينة">
               <Input
                 value={form.city}
@@ -267,13 +292,16 @@ export function SupplierFormModal({
               />
             </Field>
 
-            <Field label="رابط Google Maps">
+            <Field label="موقع Google Maps أو إحداثيات">
               <Input
                 dir="ltr"
                 value={form.google_maps_url}
                 onChange={(event) => setForm({ ...form, google_maps_url: event.target.value })}
-                placeholder="https://maps.google.com/..."
+                placeholder="مثال: 24.720861, 46.624972 أو https://maps.google.com/..."
               />
+              <p className="mt-2 text-xs text-slate-500">
+                يمكنك لصق رابط Google Maps أو إحداثيات مثل 24.720861, 46.624972 أو @24.720861,46.624972,17z
+              </p>
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">

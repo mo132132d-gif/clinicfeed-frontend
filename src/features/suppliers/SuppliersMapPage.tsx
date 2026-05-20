@@ -1,11 +1,13 @@
 import { Link } from "react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 import { MapPinned, RefreshCw } from "lucide-react";
 import { listSuppliers } from "../../services/supplierService";
 import type { Supplier } from "../../types";
-import { Button, Card, EmptyState, LoadingState, StatusBadge } from "../../components/shared/Primitives";
+import { Button, Card, EmptyState, LoadingState, Select, StatusBadge } from "../../components/shared/Primitives";
+import { categoryOptions } from "../../lib/constants";
+import { parseCategories } from "../../lib/format";
 
 const RIYADH_CENTER: [number, number] = [24.7136, 46.6753];
 
@@ -34,14 +36,20 @@ function cityText(supplier: Supplier) {
 }
 
 export function SuppliersMapPage() {
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const suppliersQuery = useQuery({ queryKey: ["suppliers"], queryFn: listSuppliers, staleTime: 60_000 });
   const suppliers = suppliersQuery.data || [];
 
   const mappedSuppliers = useMemo(() => (
     suppliers
-      .map((supplier) => ({ supplier, position: supplierPosition(supplier) }))
-      .filter((item): item is { supplier: Supplier; position: [number, number] } => Boolean(item.position))
-  ), [suppliers]);
+      .map((supplier) => ({
+        supplier,
+        position: supplierPosition(supplier),
+        categories: parseCategories(supplier.categories ?? supplier.category),
+      }))
+      .filter((item): item is { supplier: Supplier; position: [number, number]; categories: string[] } => Boolean(item.position))
+      .filter((item) => selectedCategory === "all" || item.categories.includes(selectedCategory))
+  ), [suppliers, selectedCategory]);
 
   const center = useMemo<[number, number]>(() => {
     if (mappedSuppliers.length === 0) return RIYADH_CENTER;
@@ -79,6 +87,18 @@ export function SuppliersMapPage() {
             <div className="rounded-xl border border-[#373E55] bg-[#242A39] px-4 py-2 text-sm font-bold text-[#C3CBE0]">
               مواقع محددة: {mappedSuppliers.length}
             </div>
+            <Select
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value)}
+              className="rounded-xl border border-[#373E55] bg-[#242A39] px-4 py-2 text-sm font-bold text-[#C3CBE0]"
+            >
+              <option value="all">الكل</option>
+              {categoryOptions.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </Select>
             <Button variant="secondary" onClick={() => suppliersQuery.refetch()} disabled={suppliersQuery.isFetching}>
               <RefreshCw className={`h-4 w-4 ${suppliersQuery.isFetching ? "animate-spin" : ""}`} />
               {suppliersQuery.isFetching ? "جاري التحديث..." : "تحديث"}
@@ -106,7 +126,7 @@ export function SuppliersMapPage() {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {mappedSuppliers.map(({ supplier, position }) => (
+              {mappedSuppliers.map(({ supplier, position, categories }) => (
                 <CircleMarker
                   key={supplier.id}
                   center={position}
@@ -123,6 +143,16 @@ export function SuppliersMapPage() {
                       <div>
                         <p className="font-black text-white">{supplierName(supplier)}</p>
                         <p className="mt-1 text-xs text-[#9FB2D9]">{cityText(supplier)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {categories.map((category) => (
+                          <span
+                            key={category}
+                            className="rounded-full bg-[#2F3650] px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-[#C3CBE0]"
+                          >
+                            {category}
+                          </span>
+                        ))}
                       </div>
                       <StatusBadge status={supplier.status} />
                       <Link

@@ -111,7 +111,7 @@ export function SuppliersPage() {
     const term = debouncedSearch.trim().toLowerCase();
 
     return suppliers.filter((supplier) => {
-      const categories = parseCategories(supplier.category);
+      const categories = parseCategories(supplier.categories ?? supplier.category);
       const haystack = [supplier.supplier_code, supplier.name_ar, supplier.name_en, supplier.city, supplier.cr_number, supplier.vat_number, ...categories]
         .filter(Boolean)
         .join(" ")
@@ -370,9 +370,9 @@ export function SuppliersPage() {
                         }`}>
                           {documentRiskBySupplier.get(supplier.id) === "danger" ? "مستند منتهي" : "قريب الانتهاء"}
                         </span>
-                      ) : parseCategories(supplier.category).length ? (
+                      ) : parseCategories(supplier.categories ?? supplier.category).length ? (
                         <div className="flex flex-wrap justify-center gap-1">
-                          {parseCategories(supplier.category).slice(0, 2).map((category) => (
+                          {parseCategories(supplier.categories ?? supplier.category).slice(0, 2).map((category) => (
                             <span key={category} className="rounded-full border border-[#373E55] bg-[#242A39] px-2 py-1 text-xs text-[#B8C1DD]">
                               {category}
                             </span>

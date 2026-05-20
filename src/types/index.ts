@@ -38,6 +38,7 @@ export interface Supplier {
   longitude?: number | string | null;
   google_maps_url?: string | null;
   category?: string | null;
+  categories?: string[] | null;
   status: SupplierStatus;
   notes?: string | null;
   created_at?: string;
